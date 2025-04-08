@@ -1,42 +1,25 @@
-'use client';
+// src/app/players/page.tsx
+import Sidebar from "../components/sidebar";
 
-export default function PlayersPage() {
-  const players = [
-    { id: 1, name: 'Lionel Messi', position: 'Atacante', team: 'Inter Miami' },
-    { id: 2, name: 'Cristiano Ronaldo', position: 'Atacante', team: 'Al-Nassr' },
-    { id: 3, name: 'Neymar Jr.', position: 'Meia', team: 'Al-Hilal' },
-  ];
-
+const PlayersPage = () => {
   return (
-    <main className="min-h-screen bg-zinc-900 text-white px-6 py-12">
-      <div className="max-w-4xl mx-auto flex flex-col gap-10">
-        <header className="flex items-center justify-between">
-          <h1 className="text-4xl font-bold text-yellow-400">Jogadores</h1>
-          <button className="bg-yellow-400 hover:bg-yellow-300 text-zinc-900 px-6 py-2 rounded-lg font-semibold transition-all">
-            + Adicionar jogador
-          </button>
-        </header>
+    <div className="flex">
+      <Sidebar />
+      <div className="flex-1 p-6">
+        <h2 className="text-4xl font-bold text-white">Jogadores</h2>
+        <p className="text-white mt-4">Aqui estão os jogadores cadastrados:</p>
 
-        <table className="w-full text-left border-separate border-spacing-y-3">
-          <thead>
-            <tr className="text-yellow-300 text-sm uppercase tracking-wider">
-              <th>Nome</th>
-              <th>Posição</th>
-              <th>Time</th>
-            </tr>
-          </thead>
-          <tbody>
-            {players.map((player) => (
-              <tr key={player.id} className="bg-zinc-800 hover:bg-zinc-700 transition rounded-lg">
-                <td className="px-4 py-3 rounded-l-lg">{player.name}</td>
-                <td className="px-4 py-3">{player.position}</td>
-                <td className="px-4 py-3 rounded-r-lg">{player.team}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <div className="mt-8">
+          <h3 className="text-2xl font-semibold text-white">Lista de Jogadores:</h3>
+          <ul className="space-y-4 mt-4 text-white">
+            <li className="border-b border-gray-600 py-2">Jogador 1</li>
+            <li className="border-b border-gray-600 py-2">Jogador 2</li>
+            <li className="border-b border-gray-600 py-2">Jogador 3</li>
+          </ul>
+        </div>
       </div>
-    </main>
+    </div>
   );
-}
-  
+};
+
+export default PlayersPage;
