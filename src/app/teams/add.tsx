@@ -1,6 +1,6 @@
 // src/app/teams/add.tsx
 import Sidebar from "../components/sidebar";
-import AddTeamForm from "../components/addteamform";
+import AddTeamForm from "./components/upsert-teams-form";
 
 const AddTeamPage = () => {
   return (

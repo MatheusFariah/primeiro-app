@@ -8,7 +8,7 @@ import {
   Trophy,
   ChevronDown,
   ChevronUp,
-  ListOrdered,
+  Menu,
 } from "lucide-react";
 
 const Sidebar = () => {
@@ -24,39 +24,33 @@ const Sidebar = () => {
     href,
     hasChildren = false,
     children,
-    active = false,
   }: {
     icon: React.ElementType;
     label: string;
     href?: string;
     hasChildren?: boolean;
     children?: React.ReactNode;
-    active?: boolean;
   }) => (
-    <div>
-      {href ? (
+    <div className="space-y-1">
+      {href && !hasChildren ? (
         <Link
           href={href}
-          className={`flex items-center gap-3 px-4 py-3 hover:bg-gray-800 transition ${
-            active ? "border-l-4 border-green-500 bg-gray-900" : ""
-          }`}
+          className="flex items-center gap-3 px-4 py-3 rounded-md border-l-4 border-transparent transition-colors hover:border-gray-800"
         >
-          <Icon size={18} />
-          <span>{label}</span>
+          <Icon size={18} className="text-[var(--foreground)]" />
+          <span className="font-medium">{label}</span>
         </Link>
       ) : (
         <button
           onClick={() => hasChildren && toggleMenu(label)}
-          className={`flex items-center justify-between w-full px-4 py-3 text-left hover:bg-gray-800 transition ${
-            active ? "border-l-4 border-green-500 bg-gray-900" : ""
-          }`}
+          className="flex items-center justify-between w-full px-4 py-3 rounded-md border-l-4 border-transparent transition-colors hover:border-gray-800"
         >
-          <div className="flex items-center gap-3 text-white">
-            <Icon size={18} />
-            <span>{label}</span>
+          <div className="flex items-center gap-3">
+            <Icon size={18} className="text-[var(--foreground)]" />
+            <span className="font-medium">{label}</span>
           </div>
           {hasChildren && (
-            <div className="text-white">
+            <div className="text-[var(--foreground)]">
               {openMenu === label ? (
                 <ChevronUp size={16} />
               ) : (
@@ -72,6 +66,7 @@ const Sidebar = () => {
     </div>
   );
 
+  // Aqui, o efeito de hover não é aplicado nos subitens.
   const SubItem = ({
     icon: Icon,
     label,
@@ -83,7 +78,7 @@ const Sidebar = () => {
   }) => (
     <Link
       href={href}
-      className="flex items-center gap-2 px-3 py-2 text-sm text-gray-300 hover:text-white hover:bg-gray-800 transition rounded-md"
+      className="flex items-center gap-2 px-3 py-2 text-sm text-gray-300 rounded-md"
     >
       <Icon size={16} />
       <span>{label}</span>
@@ -91,22 +86,26 @@ const Sidebar = () => {
   );
 
   return (
-    <aside className="w-72 h-screen bg-gray-950 text-white p-4 space-y-2 font-sans">
-      <div className="mb-6 mt-2 flex justify-center">
-        <h1 className="text-green-500 text-2xl font-extrabold tracking-wide">
-          FutStatics
-        </h1>
+    <aside className="sidebar w-64 flex-shrink-0 bg-gradient-to-b from-gray-900 to-[#111827] shadow-lg flex flex-col justify-between p-6">
+      <div>
+        <div className="mb-6 mt-4 flex items-center justify-center">
+          <h1 className="text-[var(--highlight-green)] text-2xl font-extrabold tracking-wide">
+            FutStatics
+          </h1>
+        </div>
+        <nav className="space-y-2">
+          <MenuItem icon={Home} label="Início" href="/" />
+          <MenuItem icon={UsersRound} label="Times" hasChildren>
+            <SubItem icon={Menu} label="Lista" href="/teams" />
+          </MenuItem>
+          <MenuItem icon={Trophy} label="Ligas" hasChildren>
+            <SubItem icon={Menu} label="Lista" href="/league" />
+          </MenuItem>
+        </nav>
       </div>
-
-      <MenuItem icon={Home} label="Início" href="/" />
-
-      <MenuItem icon={UsersRound} label="Times" hasChildren>
-        <SubItem icon={ListOrdered} label="Lista" href="/teams" />
-      </MenuItem>
-
-      <MenuItem icon={Trophy} label="Ligas" hasChildren>
-        <SubItem icon={ListOrdered} label="Lista" href="/league" />
-      </MenuItem>
+      <div className="flex items-center justify-center mt-4 text-xs text-gray-500">
+        © {new Date().getFullYear()} FutStatics
+      </div>
     </aside>
   );
 };
