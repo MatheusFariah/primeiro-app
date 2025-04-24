@@ -1,6 +1,7 @@
+// app/layout.tsx
 import type { Metadata } from "next";
 import Sidebar from "./components/sidebar";
-import "./globals.css"; // Referência ao CSS global
+import "./globals.css";
 
 export const metadata: Metadata = {
   title: "FutStatics",
@@ -16,11 +17,8 @@ export default function RootLayout({
     <html lang="pt-BR">
       <body className="min-h-screen bg-gradient-to-r from-[#0F172A] to-[#1E293B] text-[var(--foreground)] font-sans">
         <div className="flex min-h-screen">
-          {/* Sidebar fixa */}
           <Sidebar />
-
-          {/* Conteúdo principal centralizado */}
-          <main className="flex-1 flex items-center justify-center px-8 py-10">
+          <main className="flex-1 px-8 py-10">
             {children}
           </main>
         </div>

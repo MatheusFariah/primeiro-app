@@ -1,61 +1,61 @@
-@import "tailwindcss";
+  @import "tailwindcss";
 
-:root {
-  --background: #111827; /* Fundo sólido elegante e escuro */
-  --foreground: #f4f4f4; /* Texto mais claro */
-  --highlight-green: #22c55e; /* Verde da marca */
-  --secondary-gray: #1f2937; /* Cor secundária do fundo */
-  --font-sans: 'Inter', sans-serif; /* Fonte original sem serifas */
-  --font-mono: 'Courier New', monospace;
-}
-
-
-@media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #f4f4f4;
+    --background: #111827; /* Fundo sólido elegante e escuro */
+    --foreground: #f4f4f4; /* Texto mais claro */
+    --highlight-green: #22c55e; /* Verde da marca */
+    --secondary-gray: #1f2937; /* Cor secundária do fundo */
+    --font-sans: 'Inter', sans-serif; /* Fonte original sem serifas */
+    --font-mono: 'Courier New', monospace;
   }
-}
 
 
-body {
-  background-color: var(--background); /* Fundo sólido escuro */
-  color: var(--foreground); /* Texto claro */
-  font-family: var(--font-sans), sans-serif; /* Fonte sem serifa */
-  font-size: 18px;
-  line-height: 1.6;
-  background-size: cover;
-  background-position: center;
-  background-attachment: fixed;
-}
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --background: #0a0a0a;
+      --foreground: #f4f4f4;
+    }
+  }
+
+
+  body {
+    background-color: var(--background); /* Fundo sólido escuro */
+    color: var(--foreground); /* Texto claro */
+    font-family: var(--font-sans), sans-serif; /* Fonte sem serifa */
+    font-size: 18px;
+    line-height: 1.6;
+    background-size: cover;
+    background-position: center;
+    background-attachment: fixed;
+  }
 
 
 
 
-h2 {
-  font-family: var(--font-sans);
-  font-size: 2.5rem;
-  font-weight: 900;
-  color: var(--highlight-green);
-  letter-spacing: 0.05em;
-  margin-bottom: 20px;
-  text-align: center; /* Título centralizado */
-}
-/* Botões com animação suave */
-button {
-  background-color: transparent;
-  border: none;
-  cursor: pointer;
-  transition: background-color 0.3s ease, transform 0.3s ease;
-}
+  h2 {
+    font-family: var(--font-sans);
+    font-size: 2.5rem;
+    font-weight: 900;
+    color: var(--highlight-green);
+    letter-spacing: 0.05em;
+    margin-bottom: 20px;
+    text-align: center; /* Título centralizado */
+  }
+  /* Botões com animação suave */
+  button {
+    background-color: transparent;
+    border: none;
+    cursor: pointer;
+    transition: background-color 0.3s ease, transform 0.3s ease;
+  }
 
-button:hover {
-  background-color: var(--highlight-green);
-  color: var(--background);
-  transform: scale(1.05);
-}
-p {
-  text-align: center; /* Centraliza o texto */
-  font-size: 1rem;
-  margin-top: 10px;
-}
+  button:hover {
+    background-color: var(--highlight-green);
+    color: var(--background);
+    transform: scale(1.05);
+  }
+  p {
+    text-align: center; /* Centraliza o texto */
+    font-size: 1rem;
+    margin-top: 10px;
+  }
