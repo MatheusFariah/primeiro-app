@@ -7,7 +7,7 @@ const Home = () => {
       <header className="mb-12 text-center">
         <h2 className="text-5xl font-extrabold tracking-tight">
           <span className="text-white">Bem-vindo ao</span>{" "}
-          <span className="text-green-500">FutStatics</span>
+          <span style={{ color: "var(--highlight-green)" }}>FutStatics</span>
         </h2>
         <p className="mt-4 text-lg text-gray-400">
           Aqui você pode{" "}

@@ -4,32 +4,38 @@ import React from "react";
 import { useFormik } from "formik";
 import * as Yup from "yup";
 
-interface UpsertTeamsFormProps {
+interface UpsertLeaguesFormProps {
   onSubmitSuccess?: () => void;
-  existingTeam?: {
+  existingLeague?: {
     id?: string;
     name?: string;
-    founded?: string;
-    city?: string;
+    teamsCount?: number;
+    matches?: number;
   };
 }
 
-export default function UpsertTeamsForm({
+export default function UpsertLeaguesForm({
   onSubmitSuccess,
-  existingTeam,
-}: UpsertTeamsFormProps) {
-  const isEditMode = !!existingTeam?.id;
+  existingLeague,
+}: UpsertLeaguesFormProps) {
+  const isEditMode = !!existingLeague?.id;
 
   const formik = useFormik({
     initialValues: {
-      name: existingTeam?.name || "",
-      founded: existingTeam?.founded || "",
-      city: existingTeam?.city || "",
+      name: existingLeague?.name || "",
+      teamsCount: existingLeague?.teamsCount || "",
+      matches: existingLeague?.matches || "",
     },
     validationSchema: Yup.object({
       name: Yup.string().required("Preencha o campo"),
-      founded: Yup.string().required("Preencha o campo"),
-      city: Yup.string().required("Preencha o campo"),
+      teamsCount: Yup.number()
+        .typeError("Informe um número")
+        .positive("Deve ser positivo")
+        .required("Preencha o campo"),
+      matches: Yup.number()
+        .typeError("Informe um número")
+        .positive("Deve ser positivo")
+        .required("Preencha o campo"),
     }),
     onSubmit: (values) => {
       console.log(values);
@@ -39,10 +45,10 @@ export default function UpsertTeamsForm({
 
   return (
     <form onSubmit={formik.handleSubmit} className="space-y-6">
-      {/* Nome do Time */}
+      {/* Nome da Liga */}
       <div className="relative">
         <label className="block text-sm font-semibold text-gray-300 mb-2 uppercase tracking-wide">
-          Nome do Time
+          Nome da Liga
         </label>
         <input
           type="text"
@@ -50,7 +56,7 @@ export default function UpsertTeamsForm({
           value={formik.values.name}
           onChange={formik.handleChange}
           onBlur={formik.handleBlur}
-          placeholder="Ex: FutStat FC"
+          placeholder="Ex: Premier League"
           className={`w-full p-3 rounded-md bg-gray-800 text-white border ${
             formik.touched.name && formik.errors.name
               ? "border-red-500"
@@ -69,63 +75,63 @@ export default function UpsertTeamsForm({
         </div>
       </div>
 
-      {/* Fundado em */}
+      {/* Quantidade de Times */}
       <div className="relative">
         <label className="block text-sm font-semibold text-gray-300 mb-2 uppercase tracking-wide">
-          Fundado em
+          Quantidade de Times
         </label>
         <input
-          type="text"
-          name="founded"
-          value={formik.values.founded}
+          type="number"
+          name="teamsCount"
+          value={formik.values.teamsCount}
           onChange={formik.handleChange}
           onBlur={formik.handleBlur}
-          placeholder="Ex: 1990"
+          placeholder="Ex: 20"
           className={`w-full p-3 rounded-md bg-gray-800 text-white border ${
-            formik.touched.founded && formik.errors.founded
+            formik.touched.teamsCount && formik.errors.teamsCount
               ? "border-red-500"
               : "border-white/10"
           } placeholder-gray-500 transition-all duration-300`}
           style={{
             outline: "none",
             boxShadow:
-              formik.touched.founded && !formik.errors.founded
+              formik.touched.teamsCount && !formik.errors.teamsCount
                 ? "0 0 0 1px var(--highlight-green)"
                 : undefined,
           }}
         />
         <div className="absolute left-0 mt-1 text-red-500 text-xs min-h-[1rem]">
-          {formik.touched.founded && formik.errors.founded}
+          {formik.touched.teamsCount && formik.errors.teamsCount}
         </div>
       </div>
 
-      {/* Cidade */}
+      {/* Quantidade de Partidas */}
       <div className="relative">
         <label className="block text-sm font-semibold text-gray-300 mb-2 uppercase tracking-wide">
-          Cidade
+          Quantidade de Partidas
         </label>
         <input
-          type="text"
-          name="city"
-          value={formik.values.city}
+          type="number"
+          name="matches"
+          value={formik.values.matches}
           onChange={formik.handleChange}
           onBlur={formik.handleBlur}
-          placeholder="Ex: São Paulo"
+          placeholder="Ex: 38"
           className={`w-full p-3 rounded-md bg-gray-800 text-white border ${
-            formik.touched.city && formik.errors.city
+            formik.touched.matches && formik.errors.matches
               ? "border-red-500"
               : "border-white/10"
           } placeholder-gray-500 transition-all duration-300`}
           style={{
             outline: "none",
             boxShadow:
-              formik.touched.city && !formik.errors.city
+              formik.touched.matches && !formik.errors.matches
                 ? "0 0 0 1px var(--highlight-green)"
                 : undefined,
           }}
         />
         <div className="absolute left-0 mt-1 text-red-500 text-xs min-h-[1rem]">
-          {formik.touched.city && formik.errors.city}
+          {formik.touched.matches && formik.errors.matches}
         </div>
       </div>
 

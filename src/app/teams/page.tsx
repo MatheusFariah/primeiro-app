@@ -1,11 +1,75 @@
 "use client";
 
 import { useState } from "react";
+import {
+  AiOutlineClose,
+  AiOutlinePlus,
+  AiOutlineEllipsis,
+  AiOutlineSearch,
+} from "react-icons/ai"; // Ícone de Ações
 import Table from "../components/table";
 import UpsertTeamsForm from "./components/upsert-teams-form";
+import TeamBottomSlideOver from "../players/components/team-bottom-slide-over"; // Importando o Bottom Slide Over
+
+interface Team {
+  id: string;
+  name: string;
+  coach: string;
+  players: number;
+  value: string;
+  founded: number;
+}
 
 const Teams = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedTeam, setSelectedTeam] = useState<Team | null>(null);
+  const [searchTerm, setSearchTerm] = useState(""); // Termo de pesquisa
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+
+  const allTeams: Team[] = [
+    {
+      id: "1",
+      name: "FutStat FC",
+      coach: "Carlos Silva",
+      players: 22,
+      value: "€150M",
+      founded: 2001,
+    },
+    {
+      id: "2",
+      name: "Estrelas do Norte",
+      coach: "Mariana Rocha",
+      players: 20,
+      value: "€120M",
+      founded: 1998,
+    },
+    {
+      id: "3",
+      name: "Guerreiros FC",
+      coach: "João Pereira",
+      players: 18,
+      value: "€95M",
+      founded: 2005,
+    },
+  ];
+
+  // Filtragem de times com base no termo de pesquisa
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchTerm(e.target.value);
+  };
+
+  // Filtra os times
+  const filteredTeams = allTeams.filter((team) =>
+    team.name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  // Paginação
+  const totalPages = Math.ceil(filteredTeams.length / itemsPerPage);
+  const paginatedTeams = filteredTeams.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-8">
@@ -16,26 +80,42 @@ const Teams = () => {
           Aqui você pode{" "}
           <span className="text-white font-semibold">adicionar times</span> e{" "}
           <span className="text-white font-semibold">
-            acompanhar o desempenho coletivo
+            gerenciar detalhes dos clubes
           </span>
           !
         </p>
       </div>
 
-      {/* Botão para abrir o modal */}
-      <div className="flex justify-end mt-8">
+      {/* Campo de Pesquisa */}
+      <div className="mb-6 flex justify-between items-center mt-12">
+        <div className="relative w-full sm:w-96">
+          <AiOutlineSearch
+            className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400"
+            size={20}
+          />
+          <input
+            type="text"
+            placeholder="Pesquisar Times"
+            value={searchTerm}
+            onChange={handleSearchChange}
+            className="w-full px-8 py-2 pl-12 rounded-xl bg-gray-800 text-white border-2 border-gray-700 focus:border-green-500 focus:outline-none placeholder-gray-500 shadow-md shadow-black/50 transition-all duration-300"
+            style={{
+              height: "40px",
+            }}
+          />
+        </div>
+
+        {/* Botão para abrir o modal */}
         <button
           onClick={() => setIsModalOpen(true)}
-          className="
-            bg-green-500 text-white font-bold 
-            py-2 px-6 rounded-full 
-            shadow-lg 
-            transform transition-transform duration-200 
-            hover:scale-105
-          "
+          className="w-12 h-12 flex items-center justify-center rounded-full border-2 font-semibold hover:bg-green-800 hover:text-white animate-fade-in transition-all duration-300"
+          style={{
+            borderColor: "var(--highlight-green)",
+            color: "var(--highlight-green)",
+          }}
+          aria-label="Adicionar Time"
         >
-          <span className="text-xl">+</span>
-          <span>Adicionar Time</span>
+          <AiOutlinePlus size={24} />
         </button>
       </div>
 
@@ -44,72 +124,91 @@ const Teams = () => {
         <Table>
           <thead className="bg-gray-900 text-gray-400 uppercase text-sm">
             <tr>
-              {["Time", "Partidas", "Vitórias", "Empates", "Derrotas", "Pontos"].map((h) => (
-                <th key={h} className="px-6 py-3">{h}</th>
-              ))}
+              {["Time", "Técnico", "Jogadores", "Valor", "Fundação", "Ações"].map(
+                (header) => (
+                  <th key={header} className="px-6 py-3 text-left">
+                    {header}
+                  </th>
+                )
+              )}
             </tr>
           </thead>
           <tbody className="bg-gray-950 divide-y divide-gray-800">
-            {[
-              { name: "FutStat FC", p: 10, w: 7, d: 2, l: 1, pts: 23 },
-              { name: "Estrelas do Norte", p: 10, w: 5, d: 3, l: 2, pts: 18 },
-              { name: "Guerreiros FC", p: 10, w: 3, d: 2, l: 5, pts: 11 },
-            ].map((team) => (
-              <tr key={team.name} className="hover:bg-gray-900 transition duration-150">
-                <td className="px-6 py-3">{team.name}</td>
-                <td className="px-6 py-3">{team.p}</td>
-                <td className="px-6 py-3">{team.w}</td>
-                <td className="px-6 py-3">{team.d}</td>
-                <td className="px-6 py-3">{team.l}</td>
-                <td className="px-6 py-3 font-bold text-green-500">{team.pts}</td>
+            {paginatedTeams.map((team) => (
+              <tr
+                key={team.id}
+                onClick={() => setSelectedTeam(team)} // Mantivemos o clique no time
+                className="hover:bg-gray-900 transition duration-150 cursor-pointer"
+              >
+                <td
+                  className="px-6 py-3 font-bold text-green-500"
+                  style={{ width: "25%" }}
+                >
+                  {team.name}
+                </td>
+                <td className="px-6 py-3" style={{ width: "20%" }}>
+                  {team.coach}
+                </td>
+                <td className="px-6 py-3" style={{ width: "15%" }}>
+                  {team.players}
+                </td>
+                <td className="px-6 py-3" style={{ width: "20%" }}>
+                  {team.value}
+                </td>
+                <td className="px-6 py-3" style={{ width: "20%" }}>
+                  {team.founded}
+                </td>
+                <td className="px-6 py-3 w-24 text-center">
+                  <button
+                    onClick={() => setSelectedTeam(team)} // Ação de abrir o detalhe do time
+                    className="w-8 h-8 flex items-center justify-center rounded-full border-2 border-green-500 text-green-500 hover:bg-green-800 hover:text-white transition-all duration-300"
+                    aria-label="Ações"
+                  >
+                    <AiOutlineEllipsis size={20} />
+                  </button>
+                </td>
               </tr>
             ))}
           </tbody>
         </Table>
       </div>
 
-      {/* Modal */}
+      {/* Modal de adicionar time */}
       {isModalOpen && (
         <div className="fixed inset-0 flex items-center justify-center z-50">
-          {/* Overlay semitransparente + blur */}
           <div
-            className="absolute inset-0 bg-black bg-opacity-50 backdrop-blur-sm"
+            className="absolute inset-0 bg-black/50 backdrop-blur-sm transition-opacity duration-300"
             onClick={() => setIsModalOpen(false)}
           />
-
-          {/* Conteúdo do modal */}
-          <div
-            className="
-              relative z-10 
-              bg-gray-800 bg-opacity-80 
-              p-10 rounded-2xl shadow-2xl 
-              w-[90%] sm:w-[600px] 
-              transition-all duration-300
-            "
-          >
+          <div className="relative z-10 bg-gradient-to-br from-gray-800/80 to-gray-900/80 p-10 rounded-3xl shadow-xl shadow-black/30 w-[90%] sm:w-[600px] transition-all duration-300 border border-white/10">
             <div className="flex justify-between items-center mb-6">
-              <h3 className="text-2xl font-semibold text-white">Adicionar Time</h3>
-              {/* Botão de fechar circular */}
+              <div className="flex-1 text-center">
+                <h3
+                  className="text-3xl font-extrabold tracking-tight drop-shadow"
+                  style={{ color: "var(--highlight-green)" }}
+                >
+                  Adicionar Time
+                </h3>
+              </div>
               <button
                 onClick={() => setIsModalOpen(false)}
-                className="
-                  w-10 h-10 
-                  flex items-center justify-center 
-                  bg-green-500 text-white 
-                  rounded-full 
-                  shadow-md
-                  transform transition-transform duration-200 
-                  hover:scale-105
-                "
+                className="w-12 h-12 flex items-center justify-center rounded-full border-2 border-green-500 text-green-500 font-semibold hover:bg-green-800 hover:text-white transition-all duration-300 active:scale-95"
+                aria-label="Fechar Modal"
               >
-                ✕
+                <AiOutlineClose size={24} />
               </button>
             </div>
-
-            {/* Formulário */}
             <UpsertTeamsForm onSubmitSuccess={() => setIsModalOpen(false)} />
           </div>
         </div>
+      )}
+
+      {/* Bottom Slide Over de detalhes do time */}
+      {selectedTeam && (
+        <TeamBottomSlideOver
+          team={selectedTeam}
+          onClose={() => setSelectedTeam(null)}
+        />
       )}
     </div>
   );
