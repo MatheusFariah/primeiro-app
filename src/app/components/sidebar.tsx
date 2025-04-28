@@ -1,6 +1,6 @@
-"use client";
+"use client";  // Isso garante que o código seja executado no lado do cliente
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import {
   Home,
@@ -13,6 +13,11 @@ import {
 
 const Sidebar = () => {
   const [openMenu, setOpenMenu] = useState<string | null>(null);
+  const [isClient, setIsClient] = useState(false);  // Novo estado para verificar se está no cliente
+
+  useEffect(() => {
+    setIsClient(true);  // Garantir que está no cliente
+  }, []);
 
   const toggleMenu = (menu: string) => {
     setOpenMenu((prev) => (prev === menu ? null : menu));
@@ -66,7 +71,6 @@ const Sidebar = () => {
     </div>
   );
 
-  // Aqui, o efeito de hover não é aplicado nos subitens.
   const SubItem = ({
     icon: Icon,
     label,
@@ -84,6 +88,8 @@ const Sidebar = () => {
       <span>{label}</span>
     </Link>
   );
+
+  if (!isClient) return null;  // Garante que o componente só será renderizado no cliente
 
   return (
     <aside className="sidebar w-64 flex-shrink-0 bg-gradient-to-b from-gray-900 to-[#111827] shadow-lg flex flex-col justify-between p-6">

@@ -1,8 +1,16 @@
 "use client";
 
-import React from "react";
+import { useState } from "react";
 import { useFormik } from "formik";
 import * as Yup from "yup";
+import { createClient } from "@supabase/supabase-js";  // Corrigido para importar createClient
+import { useRouter } from "next/router";
+
+// Configuração do Supabase diretamente aqui
+const SUPABASE_URL = "https://vtosqvwlbojtuidwtmdp.supabase.co"; // Substitua pela sua URL do Supabase
+const SUPABASE_KEY = "YOUR_SUPABASE_ANON_KEY";  // Substitua pela sua chave pública do Supabase
+
+const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);  // Criando a instância do Supabase
 
 interface UpsertTeamsFormProps {
   onSubmitSuccess?: () => void;
@@ -19,6 +27,8 @@ export default function UpsertTeamsForm({
   existingTeam,
 }: UpsertTeamsFormProps) {
   const isEditMode = !!existingTeam?.id;
+  const [status, setStatus] = useState<string | null>(null);
+  const router = useRouter();
 
   const formik = useFormik({
     initialValues: {
@@ -31,9 +41,50 @@ export default function UpsertTeamsForm({
       founded: Yup.string().required("Preencha o campo"),
       city: Yup.string().required("Preencha o campo"),
     }),
-    onSubmit: (values) => {
-      console.log(values);
-      onSubmitSuccess?.();
+    onSubmit: async (values) => {
+      setStatus("Carregando...");
+
+      try {
+        if (isEditMode) {
+          // Atualizar o time no Supabase
+          const { data, error } = await supabase
+            .from("teams")
+            .update({
+              name: values.name,
+              founded: parseInt(values.founded),
+              city: values.city,
+            })
+            .eq("id", existingTeam?.id); // Garantir que atualize o time certo
+
+          if (error) throw error;
+          setStatus("Time atualizado com sucesso!");
+        } else {
+          // Adicionar novo time no Supabase
+          const { data, error } = await supabase
+            .from("teams")
+            .insert([
+              {
+                name: values.name,
+                founded: parseInt(values.founded),
+                city: values.city,
+              },
+            ]);
+
+          if (error) throw error;
+          setStatus("Time adicionado com sucesso!");
+        }
+
+        // Chama a função de sucesso após a operação
+        onSubmitSuccess?.();
+
+        // Redireciona de volta para a lista de times
+        setTimeout(() => {
+          router.push("/teams");
+        }, 1500);
+      } catch (error: any) {
+        console.error("Erro ao adicionar/atualizar time: ", error);
+        setStatus("Erro ao adicionar/atualizar time. Tente novamente.");
+      }
     },
   });
 
@@ -132,11 +183,7 @@ export default function UpsertTeamsForm({
       {/* Botão */}
       <button
         type="submit"
-        className="
-          w-full py-3 
-          rounded-lg border-2 
-          font-semibold transition-all duration-300
-        "
+        className="w-full py-3 rounded-lg border-2 font-semibold transition-all duration-300"
         style={{
           borderColor: "var(--highlight-green)",
           backgroundColor: "var(--highlight-green)",
@@ -145,6 +192,17 @@ export default function UpsertTeamsForm({
       >
         {isEditMode ? "Salvar Alterações" : "Cadastrar"}
       </button>
+
+      {/* Status de envio */}
+      {status && (
+        <div
+          className={`mt-4 p-2 rounded text-center ${
+            status.includes("sucesso") ? "bg-green-600" : "bg-red-600"
+          } text-white`}
+        >
+          {status}
+        </div>
+      )}
     </form>
   );
 }
