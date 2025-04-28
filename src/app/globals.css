@@ -5,7 +5,7 @@
   --foreground: #f4f4f4; /* Texto mais claro */
   --secondary-gray: #1f2937; /* Cor secundária do fundo */
   --highlight-green: #00bb48; /* Verde mais forte e marcante */
-  --highlight-green-hover: #00ff62; /* Verde escuro para hover */
+  --highlight-green-hover: #00bb48; /* Verde escuro para hover */
   --font-sans: 'Inter', sans-serif; /* Fonte original sem serifas */
   --font-mono: 'Courier New', monospace;
   --highlight-white: #ffffff;

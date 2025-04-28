@@ -3,202 +3,167 @@
 import { useState } from "react";
 import { useFormik } from "formik";
 import * as Yup from "yup";
-import { createClient } from "@supabase/supabase-js";  // Corrigido para importar createClient
-import { useRouter } from "next/router";
-
-// Configuração do Supabase diretamente aqui
-const SUPABASE_URL = "https://vtosqvwlbojtuidwtmdp.supabase.co"; // Substitua pela sua URL do Supabase
-const SUPABASE_KEY = "YOUR_SUPABASE_ANON_KEY";  // Substitua pela sua chave pública do Supabase
-
-const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);  // Criando a instância do Supabase
+import { supabase } from "@/app/lib/supabaseClient";
+import { useRouter } from "next/navigation";
 
 interface UpsertTeamsFormProps {
-  onSubmitSuccess?: () => void;
   existingTeam?: {
-    id?: string;
-    name?: string;
-    founded?: string;
-    city?: string;
+    id: number;
+    name: string;
+    coach: string;
+    value: number;
+    founded: number;
   };
+  onSubmitSuccess?: () => void;
 }
 
+type FormField = "name" | "coach" | "value" | "founded";
+
 export default function UpsertTeamsForm({
-  onSubmitSuccess,
   existingTeam,
+  onSubmitSuccess,
 }: UpsertTeamsFormProps) {
-  const isEditMode = !!existingTeam?.id;
+  const isEdit = Boolean(existingTeam?.id);
   const [status, setStatus] = useState<string | null>(null);
   const router = useRouter();
 
   const formik = useFormik({
     initialValues: {
-      name: existingTeam?.name || "",
-      founded: existingTeam?.founded || "",
-      city: existingTeam?.city || "",
+      name: existingTeam?.name ?? "",
+      coach: existingTeam?.coach ?? "",
+      value: existingTeam?.value?.toString() ?? "",
+      founded: existingTeam?.founded?.toString() ?? "",
     },
     validationSchema: Yup.object({
       name: Yup.string().required("Preencha o campo"),
+      coach: Yup.string().required("Preencha o campo"),
+      value: Yup.string().required("Preencha o campo"),
       founded: Yup.string().required("Preencha o campo"),
-      city: Yup.string().required("Preencha o campo"),
     }),
     onSubmit: async (values) => {
       setStatus("Carregando...");
-
       try {
-        if (isEditMode) {
-          // Atualizar o time no Supabase
-          const { data, error } = await supabase
+        let res;
+        if (isEdit && existingTeam) {
+          res = await supabase
             .from("teams")
             .update({
               name: values.name,
-              founded: parseInt(values.founded),
-              city: values.city,
+              coach: values.coach,
+              value: Number(values.value),
+              founded: Number(values.founded),
             })
-            .eq("id", existingTeam?.id); // Garantir que atualize o time certo
-
-          if (error) throw error;
-          setStatus("Time atualizado com sucesso!");
+            .eq("id", existingTeam.id);
         } else {
-          // Adicionar novo time no Supabase
-          const { data, error } = await supabase
-            .from("teams")
-            .insert([
-              {
-                name: values.name,
-                founded: parseInt(values.founded),
-                city: values.city,
-              },
-            ]);
-
-          if (error) throw error;
-          setStatus("Time adicionado com sucesso!");
+          res = await supabase.from("teams").insert([
+            {
+              name: values.name,
+              coach: values.coach,
+              value: Number(values.value),
+              founded: Number(values.founded),
+            },
+          ]);
         }
-
-        // Chama a função de sucesso após a operação
+        if (res.error) throw res.error;
+        setStatus(isEdit ? "Time atualizado!" : "Time cadastrado!");
         onSubmitSuccess?.();
-
-        // Redireciona de volta para a lista de times
-        setTimeout(() => {
-          router.push("/teams");
-        }, 1500);
-      } catch (error: any) {
-        console.error("Erro ao adicionar/atualizar time: ", error);
-        setStatus("Erro ao adicionar/atualizar time. Tente novamente.");
+        setTimeout(() => router.refresh(), 300);
+      } catch (err: any) {
+        console.error(err);
+        setStatus("Erro, tente novamente.");
       }
     },
   });
 
+  const fieldClasses = (field: FormField) =>
+    `w-full p-3 rounded-md bg-gray-800 text-white border` +
+    (formik.touched[field] && formik.errors[field]
+      ? " border-red-500"
+      : " border-gray-700");
+
   return (
     <form onSubmit={formik.handleSubmit} className="space-y-6">
       {/* Nome do Time */}
-      <div className="relative">
-        <label className="block text-sm font-semibold text-gray-300 mb-2 uppercase tracking-wide">
-          Nome do Time
-        </label>
+      <div className="relative mb-8">
+        <label className="block text-sm font-semibold text-gray-300 mb-2">Nome do Time</label>
         <input
-          type="text"
           name="name"
           value={formik.values.name}
           onChange={formik.handleChange}
           onBlur={formik.handleBlur}
           placeholder="Ex: FutStat FC"
-          className={`w-full p-3 rounded-md bg-gray-800 text-white border ${
-            formik.touched.name && formik.errors.name
-              ? "border-red-500"
-              : "border-white/10"
-          } placeholder-gray-500 transition-all duration-300`}
-          style={{
-            outline: "none",
-            boxShadow:
-              formik.touched.name && !formik.errors.name
-                ? "0 0 0 1px var(--highlight-green)"
-                : undefined,
-          }}
+          className={fieldClasses("name")}
         />
-        <div className="absolute left-0 mt-1 text-red-500 text-xs min-h-[1rem]">
-          {formik.touched.name && formik.errors.name}
-        </div>
+        {formik.touched.name && formik.errors.name && (
+          <span className="absolute left-0 top-full mt-1 text-xs text-red-400">{formik.errors.name}</span>
+        )}
       </div>
 
-      {/* Fundado em */}
-      <div className="relative">
-        <label className="block text-sm font-semibold text-gray-300 mb-2 uppercase tracking-wide">
-          Fundado em
-        </label>
+      {/* Técnico */}
+      <div className="relative mb-8">
+        <label className="block text-sm font-semibold text-gray-300 mb-2">Técnico</label>
         <input
-          type="text"
+          name="coach"
+          value={formik.values.coach}
+          onChange={formik.handleChange}
+          onBlur={formik.handleBlur}
+          placeholder="Ex: José Silva"
+          className={fieldClasses("coach")}
+        />
+        {formik.touched.coach && formik.errors.coach && (
+          <span className="absolute left-0 top-full mt-1 text-xs text-red-400">{formik.errors.coach}</span>
+        )}
+      </div>
+
+      {/* Valor */}
+      <div className="relative mb-8">
+        <label className="block text-sm font-semibold text-gray-300 mb-2">Valor</label>
+        <input
+          name="value"
+          value={formik.values.value}
+          onChange={formik.handleChange}
+          onBlur={formik.handleBlur}
+          placeholder="Ex: 1200000"
+          className={fieldClasses("value")}
+        />
+        {formik.touched.value && formik.errors.value && (
+          <span className="absolute left-0 top-full mt-1 text-xs text-red-400">{formik.errors.value}</span>
+        )}
+      </div>
+
+      {/* Ano de Fundação */}
+      <div className="relative mb-8">
+        <label className="block text-sm font-semibold text-gray-300 mb-2">Ano de Fundação</label>
+        <input
           name="founded"
           value={formik.values.founded}
           onChange={formik.handleChange}
           onBlur={formik.handleBlur}
-          placeholder="Ex: 1990"
-          className={`w-full p-3 rounded-md bg-gray-800 text-white border ${
-            formik.touched.founded && formik.errors.founded
-              ? "border-red-500"
-              : "border-white/10"
-          } placeholder-gray-500 transition-all duration-300`}
-          style={{
-            outline: "none",
-            boxShadow:
-              formik.touched.founded && !formik.errors.founded
-                ? "0 0 0 1px var(--highlight-green)"
-                : undefined,
-          }}
+          placeholder="Ex: 1970"
+          className={fieldClasses("founded")}
         />
-        <div className="absolute left-0 mt-1 text-red-500 text-xs min-h-[1rem]">
-          {formik.touched.founded && formik.errors.founded}
-        </div>
+        {formik.touched.founded && formik.errors.founded && (
+          <span className="absolute left-0 top-full mt-1 text-xs text-red-400">{formik.errors.founded}</span>
+        )}
       </div>
 
-      {/* Cidade */}
-      <div className="relative">
-        <label className="block text-sm font-semibold text-gray-300 mb-2 uppercase tracking-wide">
-          Cidade
-        </label>
-        <input
-          type="text"
-          name="city"
-          value={formik.values.city}
-          onChange={formik.handleChange}
-          onBlur={formik.handleBlur}
-          placeholder="Ex: São Paulo"
-          className={`w-full p-3 rounded-md bg-gray-800 text-white border ${
-            formik.touched.city && formik.errors.city
-              ? "border-red-500"
-              : "border-white/10"
-          } placeholder-gray-500 transition-all duration-300`}
-          style={{
-            outline: "none",
-            boxShadow:
-              formik.touched.city && !formik.errors.city
-                ? "0 0 0 1px var(--highlight-green)"
-                : undefined,
-          }}
-        />
-        <div className="absolute left-0 mt-1 text-red-500 text-xs min-h-[1rem]">
-          {formik.touched.city && formik.errors.city}
-        </div>
-      </div>
-
-      {/* Botão */}
+      {/* Botão de Submit */}
       <button
         type="submit"
-        className="w-full py-3 rounded-lg border-2 font-semibold transition-all duration-300"
+        className="w-full py-3 rounded-lg border-2 font-semibold transition-colors duration-300 hover:bg-[#00722c] hover:border-[#00722c]"
         style={{
-          borderColor: "var(--highlight-green)",
-          backgroundColor: "var(--highlight-green)",
-          color: "white",
+          borderColor: "#00722c",
+          backgroundColor: "#00722c",
+          color: "#fff",
         }}
       >
-        {isEditMode ? "Salvar Alterações" : "Cadastrar"}
+        {isEdit ? "Salvar Alterações" : "Cadastrar Time"}
       </button>
 
-      {/* Status de envio */}
+      {/* Feedback */}
       {status && (
         <div
-          className={`mt-4 p-2 rounded text-center ${
-            status.includes("sucesso") ? "bg-green-600" : "bg-red-600"
-          } text-white`}
+          className={`mt-4 p-2 rounded text-center ${status.includes('Erro') ? "bg-red-600" : "bg-green-600"} text-white`}
         >
           {status}
         </div>

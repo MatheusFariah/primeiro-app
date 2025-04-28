@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "next lint",
     "flask": "cd python-api && python app.py",
-    "start:all": "concurrently \"npm run dev\" \"npm run flask\""
+    "start:all": "concurrently \"npm run dev\" \"npm run flask\"",
+    "all": "npm run start:all"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.49.4",
