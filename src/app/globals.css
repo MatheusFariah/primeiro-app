@@ -87,5 +87,19 @@ p {
   -ms-overflow-style: none; /* Para IE e Edge */
   scrollbar-width: none; /* Para Firefox */
 }
+@keyframes fade-slide {
+  0% {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-slide {
+  animation: fade-slide 0.5s ease-out forwards;
+}
 
 
