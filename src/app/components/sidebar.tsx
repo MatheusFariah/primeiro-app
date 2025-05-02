@@ -40,7 +40,7 @@ const Sidebar = () => {
       {href && !hasChildren ? (
         <Link
           href={href}
-          className="flex items-center gap-3 px-4 py-3 rounded-md border-l-4 border-transparent transition-colors hover:border-gray-800"
+          className="flex items-center gap-3 px-4 py-3 rounded-md border-l-4 border-transparent transition-colors hover:border-green-500"
         >
           <Icon size={18} className="text-[var(--foreground)]" />
           <span className="font-medium">{label}</span>
@@ -48,7 +48,7 @@ const Sidebar = () => {
       ) : (
         <button
           onClick={() => hasChildren && toggleMenu(label)}
-          className="flex items-center justify-between w-full px-4 py-3 rounded-md border-l-4 border-transparent transition-colors hover:border-gray-800"
+          className="flex items-center justify-between w-full px-4 py-3 rounded-md border-l-4 border-transparent transition-colors hover:border-green-500"
         >
           <div className="flex items-center gap-3">
             <Icon size={18} className="text-[var(--foreground)]" />
