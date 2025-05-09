@@ -83,10 +83,13 @@ p {
 /* Scroll personalizado só pra FutStatics */
 /* Remove a scrollbar do container, mas mantém a rolagem */
 .scrollbar-hidden {
-  overflow: hidden; /* Remove a scrollbar visível */
-  -ms-overflow-style: none; /* Para IE e Edge */
-  scrollbar-width: none; /* Para Firefox */
+  -ms-overflow-style: none;  /* IE e Edge */
+  scrollbar-width: none;     /* Firefox */
 }
+.scrollbar-hidden::-webkit-scrollbar {
+  display: none;             /* Chrome, Safari e outros WebKit */
+}
+
 @keyframes fade-slide {
   0% {
     opacity: 0;

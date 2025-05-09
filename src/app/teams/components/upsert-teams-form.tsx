@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useFormik } from "formik";
 import * as Yup from "yup";
+import { Save } from "lucide-react";
 
 interface UpsertTeamsFormProps {
   initialData?: {
@@ -70,24 +71,28 @@ export default function UpsertTeamsForm({
       {(["name", "coach", "value", "founded"] as FormField[]).map((field) => (
         <div className="relative mb-8" key={field}>
           <label className="block text-sm font-semibold text-gray-300 mb-2">
-            {{
-              name: "Nome do Time",
-              coach: "Técnico",
-              value: "Valor",
-              founded: "Ano de Fundação",
-            }[field]}
+            {
+              {
+                name: "Nome do Time",
+                coach: "Técnico",
+                value: "Valor",
+                founded: "Ano de Fundação",
+              }[field]
+            }
           </label>
           <input
             name={field}
             value={formik.values[field]}
             onChange={formik.handleChange}
             onBlur={formik.handleBlur}
-            placeholder={{
-              name: "Ex: FutStat FC",
-              coach: "Ex: José Silva",
-              value: "Ex: 1200000",
-              founded: "Ex: 1970",
-            }[field]}
+            placeholder={
+              {
+                name: "Ex: FutStat FC",
+                coach: "Ex: José Silva",
+                value: "Ex: 1200000",
+                founded: "Ex: 1970",
+              }[field]
+            }
             className={fieldClasses(field)}
           />
           {formik.touched[field] && formik.errors[field] && (
@@ -101,17 +106,17 @@ export default function UpsertTeamsForm({
       <button
         type="submit"
         disabled={isLoading}
-        className={`w-full py-3 rounded-full border-2 font-bold text-lg transition-all duration-300
-          bg-highlight-green border-highlight-green text-white 
-          hover:scale-105 hover:brightness-110
-          disabled:opacity-50 disabled:cursor-not-allowed`}
+        className={`w-10 h-10 flex items-center justify-center rounded-full border-2 transition-all duration-300
+    border-highlight-green text-highlight-green 
+    hover:bg-highlight-green hover:text-black shadow-md
+    disabled:opacity-50 disabled:cursor-not-allowed`}
+        aria-label="Salvar Time"
       >
         {isLoading ? (
-          <div className="flex justify-center items-center space-x-2">
-            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-            <span>Salvando...</span>
-          </div>
-        ) : isEdit ? "Salvar Alterações" : "Cadastrar Time"}
+          <div className="w-4 h-4 border-2 border-highlight-green border-t-transparent rounded-full animate-spin" />
+        ) : (
+          <Save className="w-5 h-5" />
+        )}
       </button>
     </form>
   );
