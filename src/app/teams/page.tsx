@@ -636,7 +636,7 @@ export default function TeamsPage() {
               </div>
 
               {playerStats ? (
-                <StatsGraphs stats={playerStats} />
+                <StatsGraphs stats={playerStats} position={selectedPlayer?.position || ""} />
               ) : (
                 <p className="text-center text-sm text-gray-500 italic">
                   Nenhuma estatística encontrada para este jogador.
