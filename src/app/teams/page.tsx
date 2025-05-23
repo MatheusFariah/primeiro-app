@@ -621,7 +621,7 @@ export default function TeamsPage() {
             </div>
 
             {/* ESTATÍSTICAS DO JOGADOR */}
-            <div className="w-1/3 h-full overflow-y-auto px-6 py-6 space-y-6">
+            <div className="w-1/3 h-full  px-6 py-6 space-y-6">
               <div className="flex justify-between items-center mb-4">
                 <h3 className="text-2xl font-bold text-highlight-green">
                   Estatísticas de {selectedPlayer?.name}
