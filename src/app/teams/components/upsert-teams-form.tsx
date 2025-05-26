@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useFormik } from "formik";
 import * as Yup from "yup";
 import { Save } from "lucide-react";
@@ -10,18 +10,16 @@ interface UpsertTeamsFormProps {
     id?: number;
     name: string;
     coach: string;
-    value: number;
     founded: number;
   };
   onSubmit: (data: {
     name: string;
     coach: string;
-    value: number;
     founded: number;
   }) => void;
 }
 
-type FormField = "name" | "coach" | "value" | "founded";
+type FormField = "name" | "coach" | "founded";
 
 export default function UpsertTeamsForm({
   initialData,
@@ -34,15 +32,15 @@ export default function UpsertTeamsForm({
     initialValues: {
       name: initialData?.name ?? "",
       coach: initialData?.coach ?? "",
-      value: initialData?.value?.toString() ?? "",
       founded: initialData?.founded?.toString() ?? "",
     },
     enableReinitialize: true,
     validationSchema: Yup.object({
-      name: Yup.string().required("Preencha o campo"),
-      coach: Yup.string().required("Preencha o campo"),
-      value: Yup.string().required("Preencha o campo"),
-      founded: Yup.string().required("Preencha o campo"),
+      name: Yup.string().required("Preencha o nome do time"),
+      coach: Yup.string().required("Preencha o nome do técnico"),
+      founded: Yup.number()
+        .typeError("Digite um ano válido")
+        .required("Preencha o ano de fundação"),
     }),
     onSubmit: async (values) => {
       setIsLoading(true);
@@ -50,7 +48,6 @@ export default function UpsertTeamsForm({
         await onSubmit({
           name: values.name,
           coach: values.coach,
-          value: Number(values.value),
           founded: Number(values.founded),
         });
         formik.resetForm();
@@ -68,31 +65,21 @@ export default function UpsertTeamsForm({
 
   return (
     <form onSubmit={formik.handleSubmit} className="space-y-6">
-      {(["name", "coach", "value", "founded"] as FormField[]).map((field) => (
+      {(["name", "coach", "founded"] as FormField[]).map((field) => (
         <div className="relative mb-8" key={field}>
           <label className="block text-sm font-semibold text-gray-300 mb-2">
-            {
-              {
-                name: "Nome do Time",
-                coach: "Técnico",
-                value: "Valor",
-                founded: "Ano de Fundação",
-              }[field]
-            }
+            {{
+              name: "Nome do Time",
+              coach: "Técnico",
+              founded: "Ano de Fundação",
+            }[field]}
           </label>
           <input
             name={field}
             value={formik.values[field]}
             onChange={formik.handleChange}
             onBlur={formik.handleBlur}
-            placeholder={
-              {
-                name: "Ex: FutStat FC",
-                coach: "Ex: José Silva",
-                value: "Ex: 1200000",
-                founded: "Ex: 1970",
-              }[field]
-            }
+            placeholder=""
             className={fieldClasses(field)}
           />
           {formik.touched[field] && formik.errors[field] && (

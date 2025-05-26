@@ -1,22 +1,21 @@
 "use client";
-import StatsGraphs from "./components/stats-graphs";
+
 import { useState, useEffect } from "react";
 import { AiOutlinePlus, AiOutlineClose } from "react-icons/ai";
 import { FiEdit } from "react-icons/fi";
-import Drawer from "@mui/material/Drawer";
-import Table from "../components/table";
-import UpsertTeamsForm from "./components/upsert-teams-form";
-import { supabase } from "@/app/lib/supabaseClient";
+import { ArrowUpDown, ArrowRight, ArrowLeft } from "lucide-react";
 import {
-  ArrowLeft,
-  ChevronLeft,
   ChevronsLeft,
+  ChevronLeft,
   ChevronRight,
   ChevronsRight,
-  ArrowRight,
-  Save,
 } from "lucide-react";
+import Drawer from "@mui/material/Drawer";
+import { supabase } from "@/app/lib/supabaseClient";
+import Table from "../components/table";
+import UpsertTeamsForm from "./components/upsert-teams-form";
 import UpsertPlayersForm from "../players/components/upsert-players-form";
+import StatsGraphs from "./components/stats-graphs";
 
 interface Team {
   id: number;
@@ -26,14 +25,7 @@ interface Team {
   value: number;
   founded: number;
 }
-type RawTeam = {
-  id: number;
-  name: string;
-  coach: string;
-  value: number;
-  founded: number;
-  players: { id: number }[]; // 👈 recebe só os ids dos jogadores
-};
+
 interface Player {
   id: number;
   name: string;
@@ -52,33 +44,34 @@ interface Player {
 export default function TeamsPage() {
   const [teams, setTeams] = useState<Team[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedTeam, setSelectedTeam] = useState<Team | null>(null);
   const [openDrawer, setOpenDrawer] = useState(false);
-  const [statusMessage, setStatusMessage] = useState<string | null>(null);
-  const [statusType, setStatusType] = useState<"success" | "error" | null>(
-    null
-  );
   const [players, setPlayers] = useState<Player[]>([]);
   const [drawerView, setDrawerView] = useState<"list" | "stats" | "add">(
     "list"
   );
   const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
   const [playerStats, setPlayerStats] = useState<any | null>(null);
-  const itemsPerPage = 7;
-  const [currentPage, setCurrentPage] = useState(1);
-
-  const filtered = teams
-    .filter((t) => t.name.toLowerCase().includes(searchTerm.toLowerCase()))
-    .sort((a, b) => a.id - b.id);
-
-  const totalPages = Math.ceil(filtered.length / itemsPerPage);
-  const paginatedTeams = filtered.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
+  const [statusMessage, setStatusMessage] = useState<string | null>(null);
+  const [statusType, setStatusType] = useState<"success" | "error" | null>(
+    null
   );
+
+  const [sortByPlayers, setSortByPlayers] = useState(false);
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
+
+  const [sortByPosition, setSortByPosition] = useState(false);
+  const [sortDirectionPlayers, setSortDirectionPlayers] = useState<
+    "asc" | "desc"
+  >("asc");
+
+  const [playersValueMap, setPlayersValueMap] = useState<
+    Record<number, number>
+  >({});
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 7;
+
   const positionOrder = [
     "GOL",
     "LAT",
@@ -90,137 +83,50 @@ export default function TeamsPage() {
     "SA",
     "ATA",
   ];
-  const paginationItems = [
-    {
-      key: "first",
-      icon: <ChevronsLeft size={20} />,
-      page: 1,
-      disabled: currentPage === 1,
-    },
-    {
-      key: "prev",
-      icon: <ChevronLeft size={20} />,
-      page: currentPage - 1,
-      disabled: currentPage === 1,
-    },
-    ...Array.from({ length: totalPages }, (_, i) => ({
-      key: `page-${i + 1}`,
-      label: i + 1,
-      page: i + 1,
-      active: currentPage === i + 1,
-    })),
-    {
-      key: "next",
-      icon: <ChevronRight size={20} />,
-      page: currentPage + 1,
-      disabled: currentPage === totalPages,
-    },
-    {
-      key: "last",
-      icon: <ChevronsRight size={20} />,
-      page: totalPages,
-      disabled: currentPage === totalPages,
-    },
-  ];
-
-  const goToPage = (page: number) => {
-    if (page >= 1 && page <= totalPages) setCurrentPage(page);
-  };
 
   const fetchTeams = async () => {
-    setLoading(true);
-    setError(null);
+    const { data, error } = await supabase
+      .from("teams")
+      .select("id, name, coach, value, founded, players ( id )");
 
-    try {
-      const { data, error } = await supabase
-        .from("teams")
-        // id, name … + array de jogadores
-        // ✓ certo: "players ( id )"
-        .select("id, name, coach, value, founded, players ( id )");
-      if (error) throw error;
+    if (error) throw error;
 
-      /* Converte RawTeam → Team, contando o tamanho do array */
-      const mapped = (data as RawTeam[]).map((t) => ({
-        id: t.id,
-        name: t.name,
-        coach: t.coach,
-        value: t.value,
-        founded: t.founded,
-        players: t.players.length, // 🔢 contagem aqui
-      }));
+    const mapped = (data || []).map((t: any) => ({
+      id: t.id,
+      name: t.name,
+      coach: t.coach,
+      value: t.value,
+      founded: t.founded,
+      players: t.players.length,
+    }));
 
-      setTeams(mapped);
-    } catch (err) {
-      setError("Erro ao carregar os times.");
-    } finally {
-      setLoading(false);
-    }
+    setTeams(mapped);
   };
 
-  const handleSaveTeam = async (data: {
-    name: string;
-    coach: string;
-    value: number;
-    founded: number;
-  }) => {
-    try {
-      let error;
-      if (selectedTeam) {
-        ({ error } = await supabase
-          .from("teams")
-          .update(data)
-          .eq("id", selectedTeam.id));
-      } else {
-        ({ error } = await supabase.from("teams").insert(data));
-      }
+  const fetchPlayersValueMap = async () => {
+    const { data, error } = await supabase
+      .from("players")
+      .select("teams_id, value");
 
-      if (error) throw error;
+    if (error) throw error;
 
-      setStatusMessage(
-        selectedTeam
-          ? "Time atualizado com sucesso!"
-          : "Time cadastrado com sucesso!"
-      );
-      setStatusType("success");
-      setIsModalOpen(false);
-      setSelectedTeam(null);
-      fetchTeams();
-    } catch (err: any) {
-      setStatusMessage(err.message || "Erro ao salvar time.");
-      setStatusType("error");
-    } finally {
-      setTimeout(() => {
-        setStatusMessage(null);
-        setStatusType(null);
-      }, 3000);
-    }
+    const map: Record<number, number> = {};
+    (data || []).forEach((player: any) => {
+      if (!map[player.teams_id]) map[player.teams_id] = 0;
+      map[player.teams_id] += player.value;
+    });
+
+    setPlayersValueMap(map);
   };
-  const formatBRL = (n: number) =>
-    new Intl.NumberFormat("pt-BR", {
-      style: "currency",
-      currency: "BRL",
-    }).format(n);
+
   const fetchPlayersByTeamId = async (teamId: number) => {
-    try {
-      const { data, error } = await supabase
-        .from("players")
-        .select("*")
-        .eq("teams_id", teamId)
-        .order("name", { ascending: true });
+    const { data, error } = await supabase
+      .from("players")
+      .select("*")
+      .eq("teams_id", teamId);
 
-      if (error) throw error;
-
-      setPlayers(data as Player[]);
-    } catch (error) {
-      console.error("Erro ao buscar jogadores:", error);
-      setPlayers([]);
-    }
-  };
-
-  const handleRowClick = async (team: Team) => {
-    setSelectedTeam(team);
-    await fetchPlayersByTeamId(team.id);
-    setOpenDrawer(true);
+    if (error) throw error;
+    setPlayers(data as Player[]);
   };
 
   const fetchPlayerStatsById = async (playerId: number) => {
@@ -231,28 +137,102 @@ export default function TeamsPage() {
       .single();
 
     if (error) {
-      console.error("Erro ao buscar estatísticas:", error.message);
       setPlayerStats(null);
     } else {
       setPlayerStats(data);
     }
   };
+
   useEffect(() => {
     fetchTeams();
+    fetchPlayersValueMap();
   }, []);
-  // 1. Adicione esses dois useState acima do return
-  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
+
+  const handleSaveTeam = async (data: {
+    name: string;
+    coach: string;
+    founded: number;
+  }) => {
+    let error;
+    if (selectedTeam) {
+      ({ error } = await supabase
+        .from("teams")
+        .update(data)
+        .eq("id", selectedTeam.id));
+    } else {
+      ({ error } = await supabase.from("teams").insert(data));
+    }
+
+    if (error) {
+      setStatusMessage(error.message);
+      setStatusType("error");
+    } else {
+      setStatusMessage(
+        selectedTeam
+          ? "Time atualizado com sucesso!"
+          : "Time criado com sucesso!"
+      );
+      setStatusType("success");
+      fetchTeams();
+      setIsModalOpen(false);
+      setSelectedTeam(null);
+    }
+
+    setTimeout(() => {
+      setStatusMessage(null);
+      setStatusType(null);
+    }, 3000);
+  };
+
+  const handleRowClick = async (team: Team) => {
+    setSelectedTeam(team);
+    await fetchPlayersByTeamId(team.id);
+    setOpenDrawer(true);
+  };
+
+  const formatBRL = (n: number) =>
+    new Intl.NumberFormat("pt-BR", {
+      style: "currency",
+      currency: "BRL",
+    }).format(n);
+
+  const filtered = teams
+    .filter((t) => t.name.toLowerCase().includes(searchTerm.toLowerCase()))
+    .sort((a, b) => {
+      if (sortByPlayers) {
+        return sortDirection === "asc"
+          ? a.players - b.players
+          : b.players - a.players;
+      }
+      return a.id - b.id;
+    });
+
+  const totalPages = Math.ceil(filtered.length / itemsPerPage);
+
+  const paginatedTeams = filtered.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+
+  const toggleSortByPlayers = () => {
+    setSortByPlayers(!sortByPlayers);
+    setSortDirection((prev) => (prev === "asc" ? "desc" : "asc"));
+  };
 
   const toggleSortByPosition = () => {
-    setSortDirection((prev) => (prev === "asc" ? "desc" : "asc"));
+    setSortByPosition(!sortByPosition);
+    setSortDirectionPlayers((prev) => (prev === "asc" ? "desc" : "asc"));
+  };
+
+  const goToPage = (page: number) => {
+    if (page >= 1 && page <= totalPages) setCurrentPage(page);
   };
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-8">
       {statusMessage && (
         <div
-          className={`mb-6 text-center px-6 py-3 rounded-2xl shadow-lg font-bold text-lg animate-slide-up transition-all duration-500
-          ${
+          className={`mb-6 text-center px-6 py-3 rounded-2xl shadow-lg font-bold text-lg animate-slide-up transition-all duration-500 ${
             statusType === "success"
               ? "bg-highlight-green text-white"
               : "bg-red-600 text-white"
@@ -286,8 +266,6 @@ export default function TeamsPage() {
             onChange={(e) => setSearchTerm(e.target.value)}
             className="pl-10 pr-10 py-2 w-64 rounded-full bg-gray-800 text-gray-200 placeholder-gray-500 border border-gray-700 focus:ring-2 focus:outline-none"
           />
-
-          {/* Ícone da lupa */}
           <svg
             className="w-5 h-5 absolute left-3 top-1/2 -translate-y-1/2 text-gray-500"
             fill="none"
@@ -301,8 +279,6 @@ export default function TeamsPage() {
               d="M21 21l-4.35-4.35M17 11a6 6 0 11-12 0 6 6 0 0112 0z"
             />
           </svg>
-
-          {/* Botão de limpar texto */}
           {searchTerm && (
             <button
               onClick={() => setSearchTerm("")}
@@ -313,65 +289,91 @@ export default function TeamsPage() {
             </button>
           )}
         </div>
-      </div>
 
-      <div className="mt-4">
-        <Table>
-          <thead className="bg-gray-900 uppercase text-sm text-gray-400 shadow-md shadow-black/10 border-b border-gray-700">
+        <button
+          onClick={() => {
+            setSelectedTeam(null);
+            setIsModalOpen(true);
+          }}
+          className="flex items-center gap-2 rounded-full bg-highlight-green/10 hover:bg-highlight-green/20 text-highlight-green px-4 py-2 transition-colors border border-highlight-green"
+        >
+          <AiOutlinePlus className="w-5 h-5" />
+          <span className="font-semibold">Adicionar Time</span>
+        </button>
+      </div>
+      <Table>
+        <thead className="bg-gray-900 uppercase text-sm text-gray-400 shadow-md shadow-black/10 border-b border-gray-700">
+          <tr>
+            <th className="px-6 py-3 text-left">Time</th>
+            <th className="px-6 py-3 text-left">Técnico</th>
+            <th
+              onClick={toggleSortByPlayers}
+              className="px-6 py-3 text-left cursor-pointer hover:text-white transition-transform hover:scale-110"
+            >
+              <div className="flex items-center gap-2">
+                Jogadores
+                <ArrowUpDown
+                  className={`w-4 h-4 transition-transform ${
+                    sortByPlayers && sortDirection === "desc"
+                      ? "rotate-180"
+                      : "rotate-0"
+                  } ${sortByPlayers ? "opacity-100" : "opacity-30"}`}
+                />
+              </div>
+            </th>
+            <th className="px-6 py-3 text-left">Valor</th>
+            <th className="px-6 py-3 text-left">Fundação</th>
+            <th className="px-6 py-3 text-right">Ações</th>
+          </tr>
+        </thead>
+
+        <tbody className="bg-gray-950 divide-y divide-gray-800 text-gray-300">
+          {filtered.length === 0 ? (
             <tr>
-              <th className="px-6 py-3 text-left">Time</th>
-              <th className="px-6 py-3 text-left">Técnico</th>
-              <th className="px-6 py-3 text-left">Jogadores</th>
-              <th className="px-6 py-3 text-left">Valor</th>
-              <th className="px-6 py-3 text-left">Fundação</th>
-              <th className="px-6 py-3 text-right">Ações</th>
+              <td colSpan={6} className="text-center py-4 text-gray-400">
+                Nenhum time encontrado.
+              </td>
             </tr>
-          </thead>
-          <tbody className="bg-gray-950 divide-y divide-gray-800 text-gray-300">
-            {filtered.length === 0 ? (
-              <tr>
-                <td colSpan={6} className="text-center py-4 text-gray-400">
-                  Nenhum time encontrado.
+          ) : (
+            paginatedTeams.map((team) => (
+              <tr
+                key={team.id}
+                onClick={() => handleRowClick(team)}
+                className="hover:bg-gray-800 hover:text-white transition-colors duration-200 cursor-pointer"
+              >
+                <td className="px-6 py-3 font-bold text-highlight-green">
+                  {team.name}
+                </td>
+                <td className="px-6 py-3">{team.coach}</td>
+                <td className="px-6 py-3">
+                  {team.players === 0 ? "" : team.players}
+                </td>
+                <td className="px-6 py-3">
+                  {formatBRL(playersValueMap[team.id] || 0)}
+                </td>
+
+                <td className="px-6 py-3">{team.founded}</td>
+                <td className="px-6 py-3 text-right">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSelectedTeam(team);
+                      setIsModalOpen(true);
+                    }}
+                    className="p-2 rounded-full bg-highlight-green/10 hover:bg-highlight-green/20 text-highlight-green transition"
+                    title="Editar time"
+                  >
+                    <FiEdit size={18} />
+                  </button>
                 </td>
               </tr>
-            ) : (
-              paginatedTeams.map((team) => (
-                <tr
-                  key={team.id}
-                  onClick={() => handleRowClick(team)}
-                  className="hover:bg-gray-800 hover:text-white transition-colors duration-200 cursor-pointer"
-                >
-                  <td className="px-6 py-3 font-bold text-highlight-green">
-                    {team.name}
-                  </td>
-                  <td className="px-6 py-3">{team.coach}</td>
-                  <td className="px-6 py-3">
-                    {team.players === 0 ? "" : team.players}
-                  </td>
-                  <td className="px-6 py-3">{formatBRL(team.value)}</td>
-                  <td className="px-6 py-3">{team.founded}</td>
-                  <td className="px-6 py-3 text-right">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setSelectedTeam(team);
-                        setIsModalOpen(true);
-                      }}
-                      className="p-2 rounded-full bg-highlight-green/10 hover:bg-highlight-green/20 text-highlight-green transition"
-                      title="Editar time"
-                    >
-                      <FiEdit size={18} />
-                    </button>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </Table>
-      </div>
+            ))
+          )}
+        </tbody>
+      </Table>
 
       {totalPages > 1 && (
-        <div className="flex justify-center items-center gap-[px] mt-10 flex-wrap">
+        <div className="flex justify-center items-center gap-2 mt-10 flex-wrap">
           {/* Primeira página */}
           <button
             onClick={() => goToPage(1)}
@@ -397,7 +399,7 @@ export default function TeamsPage() {
           </button>
 
           {/* Página atual */}
-          <div className="w-12 h-12 flex items-center justify-center rounded-full border-2 border-highlight-green text-highlight-green ">
+          <div className="w-12 h-12 flex items-center justify-center rounded-full border-2 border-highlight-green text-highlight-green">
             {currentPage}
           </div>
 
@@ -406,7 +408,9 @@ export default function TeamsPage() {
             onClick={() => goToPage(currentPage + 1)}
             disabled={currentPage === totalPages}
             className={`w-8 h-8 flex items-center justify-center text-highlight-green hover:text-black hover:bg-highlight-green transition-colors ${
-              currentPage === 1 ? "text-gray-500" : ""
+              currentPage === totalPages
+                ? "text-gray-500 cursor-not-allowed"
+                : ""
             }`}
             aria-label="Próxima página"
           >
@@ -418,7 +422,9 @@ export default function TeamsPage() {
             onClick={() => goToPage(totalPages)}
             disabled={currentPage === totalPages}
             className={`w-8 h-8 flex items-center justify-center text-highlight-green hover:text-black hover:bg-highlight-green transition-colors ${
-              currentPage === 1 ? "text-gray-500 " : ""
+              currentPage === totalPages
+                ? "text-gray-500 cursor-not-allowed"
+                : ""
             }`}
             aria-label="Última página"
           >
@@ -427,21 +433,21 @@ export default function TeamsPage() {
         </div>
       )}
 
-      {/* Modal */}
+      {/* Modal de adicionar/editar time */}
       {isModalOpen && (
         <div className="fixed inset-0 flex items-center justify-center z-50">
           <div
-            className="absolute inset-0 bg-black/50 backdrop-blur-sm transition-opacity duration-300"
+            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
             onClick={() => setIsModalOpen(false)}
           />
-          <div className="relative z-10 bg-gradient-to-br from-gray-800/80 to-gray-900/80 p-10 rounded-3xl shadow-xl shadow-black/30 w-[90%] sm:w-[600px] transition-all duration-300 border border-white/10 animate-slide-up">
+          <div className="relative z-10 bg-gradient-to-br from-gray-800/80 to-gray-900/80 p-10 rounded-3xl shadow-xl w-[90%] sm:w-[600px] border border-white/10 animate-slide-up">
             <div className="relative mb-6">
               <h3 className="text-3xl font-extrabold text-center text-highlight-green">
                 {selectedTeam ? "Editar Time" : "Adicionar Time"}
               </h3>
               <button
                 onClick={() => setIsModalOpen(false)}
-                className="absolute right-0 top-0 w-12 h-12 flex items-center justify-center rounded-full border-2 border-highlight-green text-highlight-green hover:bg-highlight-green hover:text-black transition-colors"
+                className="absolute right-0 top-0 w-12 h-12 flex items-center justify-center rounded-full border-2 border-highlight-green text-highlight-green hover:bg-highlight-green hover:text-black transition"
                 aria-label="Fechar Modal"
               >
                 <AiOutlineClose size={24} />
@@ -454,7 +460,32 @@ export default function TeamsPage() {
           </div>
         </div>
       )}
-
+      {isModalOpen && (
+        <div className="fixed inset-0 flex items-center justify-center z-50">
+          <div
+            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+            onClick={() => setIsModalOpen(false)}
+          />
+          <div className="relative z-10 bg-gradient-to-br from-gray-800/80 to-gray-900/80 p-10 rounded-3xl shadow-xl w-[90%] sm:w-[600px] border border-white/10 animate-slide-up">
+            <div className="relative mb-6">
+              <h3 className="text-3xl font-extrabold text-center text-highlight-green">
+                {selectedTeam ? "Editar Time" : "Adicionar Time"}
+              </h3>
+              <button
+                onClick={() => setIsModalOpen(false)}
+                className="absolute right-0 top-0 w-12 h-12 flex items-center justify-center rounded-full border-2 border-highlight-green text-highlight-green hover:bg-highlight-green hover:text-black transition"
+                aria-label="Fechar Modal"
+              >
+                <AiOutlineClose size={24} />
+              </button>
+            </div>
+            <UpsertTeamsForm
+              initialData={selectedTeam || undefined}
+              onSubmit={handleSaveTeam}
+            />
+          </div>
+        </div>
+      )}
       <Drawer
         anchor="bottom"
         open={openDrawer}
@@ -488,26 +519,20 @@ export default function TeamsPage() {
                   : "translateX(-66.6666%)",
             }}
           >
-            {/* TELA DE CADASTRO */}
+            {/* CADASTRO */}
             <div className="w-1/3 h-full overflow-hidden px-6 py-6 flex flex-col">
-              {/* Header com botões */}
               <div className="flex justify-between items-start mb-4">
                 <h3 className="text-2xl font-bold text-highlight-green">
                   Cadastrar Jogador
                 </h3>
-                <div className="flex items-end gap-2">
-                  {/* Botão de voltar */}
-                  <button
-                    onClick={() => setDrawerView("list")}
-                    className="w-10 h-10 flex items-center justify-center rounded-full border-2 border-highlight-green text-highlight-green hover:bg-highlight-green hover:text-black transition-colors"
-                    aria-label="Voltar"
-                  >
-                    <ArrowRight className="w-5 h-5" />
-                  </button>
-                </div>
+                <button
+                  onClick={() => setDrawerView("list")}
+                  className="w-10 h-10 flex items-center justify-center rounded-full border-2 border-highlight-green text-highlight-green hover:bg-highlight-green hover:text-black transition-colors"
+                  aria-label="Voltar"
+                >
+                  <ArrowRight className="w-5 h-5" />
+                </button>
               </div>
-
-              {/* Formulário */}
               <div className="flex-1 overflow-y-auto pr-2">
                 <UpsertPlayersForm
                   teamId={selectedTeam?.id!}
@@ -519,7 +544,7 @@ export default function TeamsPage() {
               </div>
             </div>
 
-            {/* LISTA DE JOGADORES */}
+            {/* LISTA */}
             <div className="w-1/3 h-full overflow-y-scroll scrollbar-hidden px-6 py-6 bg-gray-900/70 backdrop-blur-md rounded-tr-2xl">
               <div className="flex justify-between items-center mb-6">
                 <h3 className="text-2xl font-bold text-highlight-green">
@@ -543,9 +568,18 @@ export default function TeamsPage() {
                       <th className="px-6 py-3 text-left">Nome</th>
                       <th
                         onClick={toggleSortByPosition}
-                        className="px-6 py-3 text-left cursor-pointer hover:text-white"
+                        className="px-6 py-3 text-left cursor-pointer hover:text-white transition-transform hover:scale-110"
                       >
-                        Posição {sortDirection === "asc" ? "↑" : "↓"}
+                        <div className="flex items-center gap-2">
+                          Posição
+                          <ArrowUpDown
+                            className={`w-4 h-4 transition-transform ${
+                              sortByPosition && sortDirectionPlayers === "desc"
+                                ? "rotate-180"
+                                : "rotate-0"
+                            } ${sortByPosition ? "opacity-100" : "opacity-30"}`}
+                          />
+                        </div>
                       </th>
                       <th className="px-6 py-3 text-left">Idade</th>
                       <th className="px-6 py-3 text-left">Contratado</th>
@@ -575,7 +609,7 @@ export default function TeamsPage() {
                           const safeA = indexA === -1 ? 999 : indexA;
                           const safeB = indexB === -1 ? 999 : indexB;
 
-                          return sortDirection === "asc"
+                          return sortDirectionPlayers === "asc"
                             ? safeA - safeB
                             : safeB - safeA;
                         })
@@ -620,8 +654,8 @@ export default function TeamsPage() {
               </div>
             </div>
 
-            {/* ESTATÍSTICAS DO JOGADOR */}
-            <div className="w-1/3 h-full  px-6 py-6 space-y-6">
+            {/* ESTATÍSTICAS */}
+            <div className="w-1/3 h-full px-6 py-6 space-y-6">
               <div className="flex justify-between items-center mb-4">
                 <h3 className="text-2xl font-bold text-highlight-green">
                   Estatísticas de {selectedPlayer?.name}
@@ -636,7 +670,10 @@ export default function TeamsPage() {
               </div>
 
               {playerStats ? (
-                <StatsGraphs stats={playerStats} position={selectedPlayer?.position || ""} />
+                <StatsGraphs
+                  stats={playerStats}
+                  position={selectedPlayer?.position || ""}
+                />
               ) : (
                 <p className="text-center text-sm text-gray-500 italic">
                   Nenhuma estatística encontrada para este jogador.

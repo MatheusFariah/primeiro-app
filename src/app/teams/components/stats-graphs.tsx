@@ -334,7 +334,6 @@ export default function StatsGraphs({ stats, position }: StatsGraphsProps) {
         flexWrap: "nowrap", // 🔥 Mantém os cards lado a lado sem quebra
       }}
     >
-      {/* PIE */}
       <Card
         sx={{
           bgcolor: "#1f1f2d",
@@ -359,41 +358,97 @@ export default function StatsGraphs({ stats, position }: StatsGraphsProps) {
           }}
           sx={{ pb: 0 }}
         />
+
         <CardContent sx={{ flex: 1 }}>
           <ResponsiveContainer width="100%" height={260}>
             <RechartsPieChart>
+              <defs>
+                <linearGradient id="passCorrect" x1="0" y1="0" x2="1" y2="1">
+                  <stop offset="0%" stopColor="#00c851" />
+                  <stop offset="100%" stopColor="#007E33" />
+                </linearGradient>
+                <linearGradient id="passWrong" x1="0" y1="0" x2="1" y2="1">
+                  <stop offset="0%" stopColor="#ff4444" />
+                  <stop offset="100%" stopColor="#CC0000" />
+                </linearGradient>
+                <filter
+                  id="shadow"
+                  x="-20%"
+                  y="-20%"
+                  width="140%"
+                  height="140%"
+                >
+                  <feDropShadow
+                    dx="0"
+                    dy="4"
+                    stdDeviation="4"
+                    floodColor="#000"
+                    floodOpacity="0.4"
+                  />
+                </filter>
+              </defs>
+
               <Pie
                 data={pieData}
                 dataKey="value"
                 nameKey="label"
-                innerRadius="60%"
-                outerRadius="85%"
-                paddingAngle={5}
+                paddingAngle={2}
                 startAngle={90}
                 endAngle={-270}
-                stroke="#1f1f2d"
-                strokeWidth={8}
                 cornerRadius={0}
+                stroke="none"
                 animationDuration={900}
+                filter="url(#shadow)"
               >
-                {pieData.map((entry, idx) => (
-                  <Cell key={idx} fill={entry.color} />
-                ))}
+                <Cell fill="url(#passCorrect)" />
+                <Cell fill="url(#passWrong)" />
               </Pie>
-              <RechartsTooltip
-                content={(args) => <CustomTooltip {...args} />}
-              />
+
               <Legend
-                verticalAlign="bottom"
-                iconType="square"
-                wrapperStyle={{ color: "#ccc", fontSize: 12 }}
+                verticalAlign="top"
+                align="center"
+                iconType="circle"
+                wrapperStyle={{
+                  color: "#bbb",
+                  fontSize: 13,
+                  display: "flex",
+                  justifyContent: "center",
+                  gap: 30,
+                  paddingBottom: 10,
+                }}
+              />
+
+              <RechartsTooltip
+                wrapperStyle={{ outline: "none" }}
+                contentStyle={{
+                  backgroundColor: "rgba(17,17,17,0.85)",
+                  border: "1px solid rgba(255,255,255,0.1)",
+                  borderRadius: 10,
+                  boxShadow: "0 8px 20px rgba(0,0,0,0.6)",
+                  backdropFilter: "blur(8px)",
+                }}
+                itemStyle={{
+                  color: "#fff",
+                  fontSize: 12,
+                }}
+                labelStyle={{
+                  color: "#bbb",
+                  fontWeight: 600,
+                  fontSize: 12,
+                }}
+                cursor={{ fill: "transparent" }}
               />
             </RechartsPieChart>
           </ResponsiveContainer>
+
           <Typography
             variant="h5"
             align="center"
-            sx={{ mt: 2, color: theme.palette.success.main }}
+            sx={{
+              mt: 2,
+              color: theme.palette.success.main,
+              textShadow: "0 1px 2px rgba(0,0,0,0.8)",
+            }}
           >
             {passPrecision}% de precisão
           </Typography>
@@ -467,6 +522,7 @@ export default function StatsGraphs({ stats, position }: StatsGraphsProps) {
         </CardContent>
       </Card>
 
+      {/* BAR */}
       <motion.div
         whileHover={{ scale: 1.03 }}
         transition={{ type: "spring", stiffness: 300, damping: 15 }}
@@ -485,7 +541,7 @@ export default function StatsGraphs({ stats, position }: StatsGraphsProps) {
             borderRadius: 6,
             p: 3,
             boxShadow: "0 12px 28px rgba(0,0,0,0.35)",
-            flex: 1, // <- aqui garante que o Card preenche o motion inteiro
+            flex: 1,
             display: "flex",
             flexDirection: "column",
             justifyContent: "space-between",
@@ -506,7 +562,12 @@ export default function StatsGraphs({ stats, position }: StatsGraphsProps) {
           >
             <Box sx={{ flex: 1 }}>
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={barData} barSize={35}>
+                <BarChart
+                  data={barData}
+                  barSize={35}
+                  margin={{ top: 20, right: 20, left: 20, bottom: 20 }}
+                >
+                  {/* Definição de gradientes e sombra */}
                   <defs>
                     <linearGradient id="barSuccess" x1="0" y1="0" x2="0" y2="1">
                       <stop
@@ -525,28 +586,78 @@ export default function StatsGraphs({ stats, position }: StatsGraphsProps) {
                         stopColor={theme.palette.error.dark}
                       />
                     </linearGradient>
+                    <filter
+                      id="shadow"
+                      x="-50%"
+                      y="-50%"
+                      width="200%"
+                      height="200%"
+                    >
+                      <feDropShadow
+                        dx="0"
+                        dy="2"
+                        stdDeviation="2"
+                        floodColor="#000"
+                        floodOpacity="0.4"
+                      />
+                    </filter>
                   </defs>
 
+                  {/* Grid */}
                   <CartesianGrid stroke="#2a2a2a" vertical={false} />
+
+                  {/* Eixo X */}
                   <XAxis
                     dataKey="name"
                     tick={{ fontSize: 12, fill: "#ddd", fontWeight: 500 }}
                     axisLine={false}
                     tickLine={false}
                   />
+
+                  {/* Eixo Y */}
                   <YAxis
+                    domain={[0, "dataMax + 5"]}
                     tick={{ fontSize: 12, fill: "#ddd" }}
                     axisLine={false}
                     tickLine={false}
                   />
+
+                  {/* Tooltip */}
                   <RechartsTooltip
-                    content={(args) => <CustomTooltip {...args} />}
+                    wrapperStyle={{ outline: "none" }}
+                    contentStyle={{
+                      backgroundColor: "rgba(17,17,17,0.9)",
+                      border: "1px solid rgba(255,255,255,0.1)",
+                      borderRadius: 10,
+                      boxShadow: "0 8px 20px rgba(0,0,0,0.5)",
+                      backdropFilter: "blur(8px)",
+                    }}
+                    itemStyle={{
+                      color: "#fff",
+                      fontSize: 12,
+                      border: "none",
+                    }}
+                    labelStyle={{
+                      color: "#ccc",
+                      fontWeight: 600,
+                      fontSize: 12,
+                      border: "none",
+                    }}
                   />
+
+                  {/* Legenda */}
                   <Legend
-                    verticalAlign="bottom"
+                    verticalAlign="top"
+                    align="center"
                     iconType="circle"
-                    wrapperStyle={{ color: "#bbb", fontSize: 13 }}
+                    wrapperStyle={{
+                      color: "#bbb",
+                      fontSize: 13,
+                      paddingBottom: 10,
+                    }}
                   />
+
+                  {/* Barras */}
                   {Object.keys(barData[0])
                     .filter((k) => k !== "name")
                     .map((key, i) => (
@@ -557,18 +668,9 @@ export default function StatsGraphs({ stats, position }: StatsGraphsProps) {
                           i % 2 === 0 ? "url(#barSuccess)" : "url(#barError)"
                         }
                         radius={[8, 8, 0, 0]}
+                        style={{ filter: "url(#shadow)" }}
                         animationDuration={900}
-                      >
-                        <LabelList
-                          dataKey={key}
-                          position="top"
-                          style={{
-                            fill: "#fff",
-                            fontSize: 12,
-                            textShadow: "0 1px 2px rgba(0,0,0,0.7)",
-                          }}
-                        />
-                      </Bar>
+                      />
                     ))}
                 </BarChart>
               </ResponsiveContainer>
