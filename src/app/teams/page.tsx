@@ -2,7 +2,18 @@
 
 import { useState, useEffect } from "react";
 import { AiOutlinePlus, AiOutlineClose } from "react-icons/ai";
-import { FiEdit } from "react-icons/fi";
+import { FiBarChart2, FiEdit } from "react-icons/fi";
+import { MdLocalHospital, MdHealing, MdMedicalServices } from "react-icons/md";
+
+import {
+  MdRemove,
+  MdClose,
+  MdCheckCircle,
+  MdCheck,
+  MdRemoveCircle,
+  MdAddCircle,
+  MdAdd,
+} from "react-icons/md";
 import { ArrowUpDown, ArrowRight, ArrowLeft } from "lucide-react";
 import {
   ChevronsLeft,
@@ -15,7 +26,8 @@ import { supabase } from "@/app/lib/supabaseClient";
 import Table from "../components/table";
 import UpsertTeamsForm from "./components/upsert-teams-form";
 import UpsertPlayersForm from "../players/components/upsert-players-form";
-import StatsGraphs from "./components/stats-graphs";
+import StatsGraphs, { positionProfiles } from "./components/stats-graphs";
+import { countries } from "../utils/countries";
 
 interface Team {
   id: number;
@@ -71,6 +83,49 @@ export default function TeamsPage() {
   >({});
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 7;
+
+  interface StatusIconProps {
+    status: string;
+  }
+
+  function StatusIcon({ status }: { status: string }) {
+    const baseClass =
+      "w-6 h-6 flex items-center justify-center rounded-full text-white";
+
+    switch (status.toLowerCase()) {
+      case "ativo":
+        return (
+          <div
+            className={`${baseClass} bg-green-600 text-white`}
+            title="Ativo"
+            aria-label="Ativo"
+          >
+            <MdCheck className="w-4 h-4" />
+          </div>
+        );
+      case "lesionado":
+        return (
+          <div
+            className={`${baseClass} bg-red-600`}
+            title="Lesionado"
+            aria-label="Lesionado"
+          >
+            <MdAdd size={20} />
+          </div>
+        );
+      case "nulo":
+      default:
+        return (
+          <div
+            className={`${baseClass} bg-gray-600 text-white`}
+            title="Nulo"
+            aria-label="Nulo"
+          >
+            <MdRemove className="w-4 h-4" />
+          </div>
+        );
+    }
+  }
 
   const positionOrder = [
     "GOL",
@@ -138,15 +193,15 @@ export default function TeamsPage() {
 
     if (error) {
       setPlayerStats(null);
+      return null;
     } else {
       setPlayerStats(data);
+      return data;
     }
   };
-
   useEffect(() => {
-    fetchTeams();
-    fetchPlayersValueMap();
-  }, []);
+    if (!selectedPlayer) setPlayerStats(null);
+  }, [selectedPlayer?.id]); // só monitora id, que é string ou number e não muda de tamanho
 
   const handleSaveTeam = async (data: {
     name: string;
@@ -493,7 +548,6 @@ export default function TeamsPage() {
           setOpenDrawer(false);
           setDrawerView("list");
           setSelectedPlayer(null);
-          setPlayerStats(null);
         }}
         PaperProps={{
           sx: {
@@ -540,6 +594,7 @@ export default function TeamsPage() {
                     fetchPlayersByTeamId(selectedTeam?.id!);
                     setDrawerView("list");
                   }}
+                  existingPlayer={selectedPlayer}
                 />
               </div>
             </div>
@@ -551,7 +606,10 @@ export default function TeamsPage() {
                   Jogadores de {selectedTeam?.name}
                 </h3>
                 <button
-                  onClick={() => setDrawerView("add")}
+                  onClick={() => {
+                    setSelectedPlayer(null);
+                    setDrawerView("add");
+                  }}
                   className="w-10 h-10 flex items-center justify-center rounded-full border-2 border-highlight-green text-highlight-green hover:bg-highlight-green hover:text-black transition-colors"
                   aria-label="Adicionar Jogador"
                 >
@@ -584,70 +642,98 @@ export default function TeamsPage() {
                       <th className="px-6 py-3 text-left">Idade</th>
                       <th className="px-6 py-3 text-left">Contratado</th>
                       <th className="px-6 py-3 text-left">Preço (R$)</th>
+                      <th className="px-6 py-3 text-left">Ações</th>
+                      {""}
                     </tr>
                   </thead>
                   <tbody className="bg-gray-950 divide-y divide-gray-800 text-gray-300">
                     {players.length === 0 ? (
                       <tr>
                         <td
-                          colSpan={7}
+                          colSpan={8}
                           className="text-center py-6 italic text-gray-500"
                         >
                           Nenhum jogador encontrado.
                         </td>
                       </tr>
                     ) : (
-                      [...players]
-                        .sort((a, b) => {
-                          const indexA = positionOrder.indexOf(
-                            a.position.toUpperCase()
-                          );
-                          const indexB = positionOrder.indexOf(
-                            b.position.toUpperCase()
-                          );
+                      players.map((p) => (
+                        <tr
+                          key={p.id}
+                          onClick={async () => {
+                            setSelectedPlayer(p);
+                            await fetchPlayerStatsById(p.id);
+                            setDrawerView("stats");
+                          }}
+                          className="hover:bg-gray-900 transition-colors cursor-pointer"
+                        >
+                          <td className="px-6 py-3">
+                            <div className="flex items-center gap-2">
+                              <img
+                                src={`https://flagcdn.com/w40/${p.nationality.toLowerCase()}.png`}
+                                alt={p.nationality}
+                                className="w-6 h-4 object-cover rounded-sm border border-white/10"
+                              />
+                              <span className="capitalize">
+                                {Object.keys(countries).find(
+                                  (key) => countries[key] === p.nationality
+                                ) || p.nationality}
+                              </span>
+                            </div>
+                          </td>
 
-                          const safeA = indexA === -1 ? 999 : indexA;
-                          const safeB = indexB === -1 ? 999 : indexB;
+                          <td className="px-6 py-3 flex justify-center">
+                            <StatusIcon status={p.status} />
+                          </td>
 
-                          return sortDirectionPlayers === "asc"
-                            ? safeA - safeB
-                            : safeB - safeA;
-                        })
-                        .map((p) => (
-                          <tr
-                            key={p.id}
-                            onClick={async () => {
-                              setSelectedPlayer(p);
-                              await fetchPlayerStatsById(p.id);
-                              setDrawerView("stats");
-                            }}
-                            className="hover:bg-gray-900 transition-colors cursor-pointer"
-                          >
-                            <td className="px-6 py-3 capitalize">
-                              {p.nationality}
-                            </td>
-                            <td className="px-6 py-3 capitalize">{p.status}</td>
-                            <td className="px-6 py-3 font-semibold text-highlight-green capitalize">
-                              {p.name}
-                            </td>
-                            <td className="px-6 py-3 capitalize">
-                              {p.position}
-                            </td>
-                            <td className="px-6 py-3">{p.age}</td>
-                            <td className="px-6 py-3">
-                              {new Date(p.join_date).toLocaleDateString(
-                                "pt-BR"
-                              )}
-                            </td>
-                            <td className="px-6 py-3">
-                              <span className="text-highlight-green">R$</span>{" "}
-                              {new Intl.NumberFormat("pt-BR", {
-                                minimumFractionDigits: 2,
-                                maximumFractionDigits: 2,
-                              }).format(p.value)}
-                            </td>
-                          </tr>
-                        ))
+                          <td className="px-6 py-3 font-semibold text-highlight-green capitalize">
+                            {p.name}
+                          </td>
+
+                          <td className="px-6 py-3 capitalize">{p.position}</td>
+
+                          <td className="px-6 py-3 text-center">{p.age}</td>
+
+                          <td className="px-6 py-3 text-center">
+                            {new Date(p.join_date).toLocaleDateString("pt-BR")}
+                          </td>
+
+                          <td className="px-6 py-3 text-right">
+                            <span className="text-highlight-green">R$</span>{" "}
+                            {new Intl.NumberFormat("pt-BR", {
+                              minimumFractionDigits: 2,
+                              maximumFractionDigits: 2,
+                            }).format(p.value)}
+                          </td>
+
+                          <td className="px-6 py-3 flex gap-3 justify-center">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedPlayer(p);
+                                setDrawerView("add");
+                              }}
+                              title="Editar jogador"
+                              className="p-2 rounded-md bg-highlight-green/20 text-highlight-green hover:bg-highlight-green transition"
+                              aria-label="Editar jogador"
+                            >
+                              <FiEdit size={18} />
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedPlayer(p);
+                                setDrawerView("stats");
+                              }}
+                              title="Adicionar estatísticas"
+                              aria-label="Adicionar estatísticas"
+                              className="p-1.5 border-2 border-highlight-green rounded-md text-highlight-green hover:bg-highlight-green hover:text-white transition"
+                            >
+                              <FiBarChart2 size={16} />
+                            </button>
+                          </td>
+                        </tr>
+                      ))
                     )}
                   </tbody>
                 </Table>
@@ -658,7 +744,7 @@ export default function TeamsPage() {
             <div className="w-1/3 h-full px-6 py-6 space-y-6">
               <div className="flex justify-between items-center mb-4">
                 <h3 className="text-2xl font-bold text-highlight-green">
-                  Estatísticas de {selectedPlayer?.name}
+                  Estatísticas de {selectedPlayer?.name ?? "Jogador"}
                 </h3>
                 <button
                   onClick={() => setDrawerView("list")}
@@ -672,7 +758,12 @@ export default function TeamsPage() {
               {playerStats ? (
                 <StatsGraphs
                   stats={playerStats}
-                  position={selectedPlayer?.position || ""}
+                  position={
+                    selectedPlayer?.position &&
+                    positionProfiles[selectedPlayer.position]
+                      ? selectedPlayer.position
+                      : "ATA" // posição padrão para evitar erro
+                  }
                 />
               ) : (
                 <p className="text-center text-sm text-gray-500 italic">

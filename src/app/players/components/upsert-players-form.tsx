@@ -57,11 +57,12 @@ export default function UpsertPlayersForm({
       join_date: existingPlayer?.join_date || "",
       value: existingPlayer?.value || "",
     },
+
     validationSchema: Yup.object({
       name: Yup.string().required("Preencha o nome"),
       age: Yup.number().min(0).required("Informe a idade"),
       dob: Yup.date().required("Informe a data de nascimento"),
-      position: Yup.string().required("Preencha a posição"),
+      position: Yup.string().required("Informe a posição"),
       nationality: Yup.string().required("Informe a nacionalidade"),
       status: Yup.string().required("Informe o status"),
       weight: Yup.number().required("Informe o peso"),
@@ -69,13 +70,15 @@ export default function UpsertPlayersForm({
       join_date: Yup.date().required("Informe a data de contratação"),
       value: Yup.number().required("Informe o valor"),
     }),
+
     onSubmit: async (values) => {
       const payload = {
         ...values,
         teams_id: teamId,
-        value: parseFormattedNumber(values.value.toString()),
         weight: parseFormattedNumber(values.weight.toString()),
         height: parseFormattedNumber(values.height.toString()),
+        value: parseFormattedNumber(values.value.toString()),
+        age: Number(values.age),
       };
 
       const { error } = isEditMode
@@ -253,10 +256,8 @@ export default function UpsertPlayersForm({
 
       {/* Botão de salvar */}
       <div className="flex justify-end gap-3">
-        {/* Botão de salvar */}
         <button
           type="submit"
-          form="upsert-player-form"
           className="w-10 h-10 flex items-center justify-center rounded-full border-2 border-highlight-green text-highlight-green hover:bg-highlight-green hover:text-black transition-colors shadow-md"
           aria-label="Salvar"
         >
@@ -264,74 +265,5 @@ export default function UpsertPlayersForm({
         </button>
       </div>
     </form>
-  );
-}
-
-function InputField({ label, name, placeholder, type = "text", formik }: any) {
-  return (
-    <div className="relative">
-      <label className="block text-sm font-semibold text-gray-300 mb-1 uppercase tracking-wide">
-        {label}
-      </label>
-      <input
-        type={type}
-        name={name}
-        value={formik.values[name]}
-        onChange={formik.handleChange}
-        onBlur={formik.handleBlur}
-        placeholder={placeholder}
-        className={`w-full p-3 rounded-md bg-gray-800 text-white border ${
-          formik.touched[name] && formik.errors[name]
-            ? "border-red-500"
-            : "border-white/10"
-        } placeholder-gray-500 transition-all duration-300`}
-      />
-      <div className="absolute left-0 mt-1 text-red-500 text-xs min-h-[1rem]">
-        {formik.touched[name] && formik.errors[name]}
-      </div>
-    </div>
-  );
-}
-
-function CountrySelectField({ formik }: { formik: any }) {
-  return (
-    <div className="relative">
-      <label className="block text-sm font-semibold text-gray-300 mb-1 uppercase tracking-wide">
-        Nacionalidade
-      </label>
-      <select
-        name="nationality"
-        value={formik.values.nationality}
-        onChange={formik.handleChange}
-        onBlur={formik.handleBlur}
-        className={`w-full p-3 rounded-md bg-gray-800 text-white border ${
-          formik.touched.nationality && formik.errors.nationality
-            ? "border-red-500"
-            : "border-white/10"
-        } transition-all duration-300`}
-      >
-        <option value="">Selecione um país</option>
-        {Object.entries(countries).map(([countryName, countryCode]) => (
-          <option key={countryCode} value={countryCode}>
-            {countryName}
-          </option>
-        ))}
-      </select>
-
-      {Object.keys(countries).includes(formik.values.nationality) && (
-        <div className="mt-2 flex items-center gap-2 text-sm text-white">
-          <img
-            src={`https://flagcdn.com/w40/${formik.values.nationality.toLowerCase()}.png`}
-            className="w-6 h-4 object-cover rounded-sm border border-white/20"
-            alt="bandeira"
-          />
-          {countries[formik.values.nationality]} {/* Mostra o nome do país */}
-        </div>
-      )}
-
-      <div className="absolute left-0 mt-1 text-red-500 text-xs min-h-[1rem]">
-        {formik.touched.nationality && formik.errors.nationality}
-      </div>
-    </div>
   );
 }
