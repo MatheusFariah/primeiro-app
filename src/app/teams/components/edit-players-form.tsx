@@ -4,17 +4,23 @@ import { JSX, useEffect, useState } from "react";
 import { supabase } from "@/app/lib/supabaseClient";
 import { countries } from "@/app/utils/countries";
 import { Save } from "lucide-react";
+import { NumericFormat } from "react-number-format";
+import Swal from "sweetalert2";
 
 interface EditPlayersFormProps {
   teamId: number;
   existingPlayer: any;
   onSubmitSuccess: () => void;
+  onRequestDelete?: () => void;
+  onCancelDelete?: () => void;
 }
 
 export default function EditPlayersForm({
   teamId,
   existingPlayer,
   onSubmitSuccess,
+  onRequestDelete,
+  onCancelDelete,
 }: EditPlayersFormProps) {
   const [form, setForm] = useState({
     name: "",
@@ -41,10 +47,13 @@ export default function EditPlayersForm({
         position: existingPlayer.position || "",
         nationality: existingPlayer.nationality || "BR",
         status: existingPlayer.status || "ativo",
-        weight: existingPlayer.weight || "",
-        height: existingPlayer.height || "",
+        weight: existingPlayer.weight?.toString().replace(".", ",") || "",
+        height: existingPlayer.height?.toString().replace(".", ",") || "",
         join_date: existingPlayer.join_date || "",
-        value: existingPlayer.value || "",
+        value:
+          existingPlayer.value?.toLocaleString("pt-BR", {
+            minimumFractionDigits: 2,
+          }) || "",
       });
     }
   }, [existingPlayer]);
@@ -65,7 +74,19 @@ export default function EditPlayersForm({
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
   ) => {
     const { name, value } = e.target;
-    setForm((prev) => ({ ...prev, [name]: value }));
+    let formattedValue = value;
+
+    if (name === "height" || name === "weight") {
+      const onlyNumbers = value.replace(/[^0-9]/g, "");
+      if (!onlyNumbers) formattedValue = "";
+      else {
+        const integerPart = onlyNumbers.slice(0, -1) || "0";
+        const decimalPart = onlyNumbers.slice(-1);
+        formattedValue = `${parseInt(integerPart, 10)},${decimalPart}`;
+      }
+    }
+
+    setForm((prev) => ({ ...prev, [name]: formattedValue }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -73,15 +94,17 @@ export default function EditPlayersForm({
     setLoading(true);
     setError(null);
 
+    const parseNumber = (str: string) => Number(str.replace(",", "."));
+
     const { error } = await supabase
       .from("players")
       .update({
         ...form,
         teams_id: teamId,
         age: Number(form.age),
-        weight: Number(form.weight),
-        height: Number(form.height),
-        value: Number(form.value),
+        weight: parseNumber(form.weight),
+        height: parseNumber(form.height),
+        value: parseNumber(form.value),
       })
       .eq("id", existingPlayer.id);
 
@@ -94,11 +117,49 @@ export default function EditPlayersForm({
     setLoading(false);
   };
 
-  const renderField = (
-    label: string,
-    name: string,
-    input: JSX.Element
-  ) => (
+  const handleDelete = async () => {
+    onRequestDelete?.(); // Fecha o drawer antes de abrir o SweetAlert
+
+    const result = await Swal.fire({
+      title: "Tem certeza?",
+      text: `Você deseja excluir o jogador ${form.name}?`,
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#e11d48",
+      cancelButtonColor: "#1f2937",
+      confirmButtonText: "Sim, excluir",
+      cancelButtonText: "Cancelar",
+      background: "#1f2937",
+      color: "#f3f4f6",
+    });
+
+    if (result.isConfirmed) {
+      setLoading(true);
+      const { error } = await supabase
+        .from("players")
+        .delete()
+        .eq("id", existingPlayer.id);
+      setLoading(false);
+
+      if (error) {
+        Swal.fire("Erro!", error.message, "error");
+      } else {
+        Swal.fire({
+          title: "Excluído!",
+          text: "Jogador removido com sucesso.",
+          icon: "success",
+          background: "#1f2937",
+          color: "#f3f4f6",
+          confirmButtonColor: "#10b981",
+        });
+        onSubmitSuccess();
+      }
+    } else {
+      onCancelDelete?.(); // Volta para edição se cancelar
+    }
+  };
+
+  const renderField = (label: string, name: string, input: JSX.Element) => (
     <div className="flex flex-col">
       <label className="text-sm font-semibold text-gray-300 mb-1 uppercase tracking-wide">
         {label}
@@ -112,7 +173,6 @@ export default function EditPlayersForm({
 
   return (
     <>
-      {/* Estilo global para deixar ícone do calendário branco */}
       <style>{`
         input[type="date"]::-webkit-calendar-picker-indicator {
           filter: invert(1);
@@ -126,7 +186,6 @@ export default function EditPlayersForm({
           </div>
         )}
 
-        {/* Linha 1 */}
         <div className="grid grid-cols-4 gap-4">
           {renderField(
             "Nome",
@@ -149,7 +208,7 @@ export default function EditPlayersForm({
               onChange={handleChange}
               className={baseInputClass}
             >
-              {Object.entries(countries).map(([code, name]) => (
+              {Object.entries(countries).map(([code]) => (
                 <option key={code} value={code}>
                   {code}
                 </option>
@@ -159,12 +218,21 @@ export default function EditPlayersForm({
           {renderField(
             "Valor (R$)",
             "value",
-            <input
-              type="number"
+            <NumericFormat
               name="value"
               value={form.value}
-              onChange={handleChange}
-              placeholder="0.00"
+              onValueChange={(values) =>
+                setForm((prev) => ({
+                  ...prev,
+                  value: values.formattedValue,
+                }))
+              }
+              thousandSeparator="."
+              decimalSeparator=","
+              decimalScale={2}
+              fixedDecimalScale
+              allowNegative={false}
+              placeholder="Ex: 4.700,00"
               className={baseInputClass}
             />
           )}
@@ -186,7 +254,6 @@ export default function EditPlayersForm({
           )}
         </div>
 
-        {/* Linha 2 */}
         <div className="grid grid-cols-4 gap-4">
           {renderField(
             "Status",
@@ -205,24 +272,42 @@ export default function EditPlayersForm({
           {renderField(
             "Peso (kg)",
             "weight",
-            <input
-              type="number"
+            <NumericFormat
               name="weight"
               value={form.weight}
-              onChange={handleChange}
-              placeholder="Ex: 70"
+              onValueChange={(values) =>
+                setForm((prev) => ({
+                  ...prev,
+                  weight: values.formattedValue,
+                }))
+              }
+              decimalSeparator=","
+              decimalScale={1}
+              fixedDecimalScale
+              allowNegative={false}
+              allowLeadingZeros={false}
+              placeholder="Ex: 79,8"
               className={baseInputClass}
             />
           )}
           {renderField(
-            "Altura (cm)",
+            "Altura (m)",
             "height",
-            <input
-              type="number"
+            <NumericFormat
               name="height"
               value={form.height}
-              onChange={handleChange}
-              placeholder="Ex: 180"
+              onValueChange={(values) =>
+                setForm((prev) => ({
+                  ...prev,
+                  height: values.formattedValue,
+                }))
+              }
+              decimalSeparator=","
+              decimalScale={2}
+              fixedDecimalScale
+              allowNegative={false}
+              allowLeadingZeros={false}
+              placeholder="Ex: 1,80"
               className={baseInputClass}
             />
           )}
@@ -240,7 +325,6 @@ export default function EditPlayersForm({
           )}
         </div>
 
-        {/* Linha 3 */}
         <div className="grid grid-cols-2 gap-4">
           {renderField(
             "Nascimento",
@@ -266,8 +350,29 @@ export default function EditPlayersForm({
           )}
         </div>
 
-        {/* Botão */}
-        <div className="flex justify-end">
+        <div className="flex justify-end gap-3">
+          <button
+            type="button"
+            onClick={handleDelete}
+            className="w-10 h-10 flex items-center justify-center rounded-full border-2 border-red-600 text-red-600 hover:bg-red-600 hover:text-white transition-colors shadow-md"
+            aria-label="Excluir"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="w-5 h-5"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3m5 0H6"
+              />
+            </svg>
+          </button>
+
           <button
             type="submit"
             disabled={loading}

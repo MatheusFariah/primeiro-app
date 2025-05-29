@@ -28,6 +28,7 @@ import UpsertTeamsForm from "./components/upsert-teams-form";
 import UpsertPlayersForm from "../players/components/upsert-players-form";
 import StatsGraphs, { positionProfiles } from "./components/stats-graphs";
 import { countries } from "../utils/countries";
+import EditPlayersForm from "./components/edit-players-form";
 
 interface Team {
   id: number;
@@ -60,9 +61,10 @@ export default function TeamsPage() {
   const [selectedTeam, setSelectedTeam] = useState<Team | null>(null);
   const [openDrawer, setOpenDrawer] = useState(false);
   const [players, setPlayers] = useState<Player[]>([]);
-  const [drawerView, setDrawerView] = useState<"list" | "stats" | "add">(
-    "list"
-  );
+  const [drawerView, setDrawerView] = useState<
+    "list" | "stats" | "add" | "edit"
+  >("list");
+
   const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
   const [playerStats, setPlayerStats] = useState<any | null>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
@@ -79,8 +81,9 @@ export default function TeamsPage() {
   >("asc");
 
   const [playersValueMap, setPlayersValueMap] = useState<
-    Record<number, number>
+    Record<string, number>
   >({});
+
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 7;
 
@@ -140,39 +143,54 @@ export default function TeamsPage() {
   ];
 
   const fetchTeams = async () => {
-    const { data, error } = await supabase
+    const { data: teamsData, error: teamsError } = await supabase
       .from("teams")
-      .select("id, name, coach, value, founded, players ( id )");
+      .select("*");
 
-    if (error) throw error;
+    const { data: playersData, error: playersError } = await supabase
+      .from("players")
+      .select("teams_id, value");
 
-    const mapped = (data || []).map((t: any) => ({
+    if (teamsError) {
+      console.error("Erro ao buscar times:", teamsError);
+      return;
+    }
+
+    if (playersError) {
+      console.error("Erro ao buscar jogadores:", playersError);
+      return;
+    }
+
+    const playersCountMap: Record<string, number> = {};
+    const playersValueMapTemp: Record<string, number> = {};
+
+    (playersData || []).forEach((player) => {
+      const teamId = String(player.teams_id);
+
+      // Count de jogadores
+      if (!playersCountMap[teamId]) playersCountMap[teamId] = 0;
+      playersCountMap[teamId] += 1;
+
+      // Soma dos valores dos jogadores
+      if (!playersValueMapTemp[teamId]) playersValueMapTemp[teamId] = 0;
+      playersValueMapTemp[teamId] += player.value;
+    });
+
+    const mapped = (teamsData || []).map((t: any) => ({
       id: t.id,
       name: t.name,
       coach: t.coach,
       value: t.value,
       founded: t.founded,
-      players: t.players.length,
+      players: playersCountMap[String(t.id)] || 0, // <- count certo
     }));
 
     setTeams(mapped);
+    setPlayersValueMap(playersValueMapTemp);
   };
-
-  const fetchPlayersValueMap = async () => {
-    const { data, error } = await supabase
-      .from("players")
-      .select("teams_id, value");
-
-    if (error) throw error;
-
-    const map: Record<number, number> = {};
-    (data || []).forEach((player: any) => {
-      if (!map[player.teams_id]) map[player.teams_id] = 0;
-      map[player.teams_id] += player.value;
-    });
-
-    setPlayersValueMap(map);
-  };
+  useEffect(() => {
+    fetchTeams();
+  }, []);
 
   const fetchPlayersByTeamId = async (teamId: number) => {
     const { data, error } = await supabase
@@ -298,7 +316,7 @@ export default function TeamsPage() {
       )}
 
       <div className="space-y-4 text-center">
-        <h2 className="text-5xl font-black text-highlight-green">Times</h2>
+        <h2 className="text-5xl font-white text-highlight-green">Times</h2>
         <p className="text-lg text-gray-300 max-w-2xl mx-auto">
           Aqui você pode{" "}
           <span className="text-highlight-green font-semibold">
@@ -404,7 +422,7 @@ export default function TeamsPage() {
                   {team.players === 0 ? "" : team.players}
                 </td>
                 <td className="px-6 py-3">
-                  {formatBRL(playersValueMap[team.id] || 0)}
+                  {formatBRL(playersValueMap[String(team.id)] || 0)}
                 </td>
 
                 <td className="px-6 py-3">{team.founded}</td>
@@ -433,7 +451,7 @@ export default function TeamsPage() {
           <button
             onClick={() => goToPage(1)}
             disabled={currentPage === 1}
-            className={`w-8 h-8 flex items-center justify-center text-highlight-green hover:text-black hover:bg-highlight-green transition-colors ${
+            className={`w-8 h-8 flex items-center justify-center text-highlight-green hover:text-white hover:bg-highlight-green transition-colors ${
               currentPage === 1 ? "text-gray-500 cursor-not-allowed" : ""
             }`}
             aria-label="Primeira página"
@@ -462,7 +480,7 @@ export default function TeamsPage() {
           <button
             onClick={() => goToPage(currentPage + 1)}
             disabled={currentPage === totalPages}
-            className={`w-8 h-8 flex items-center justify-center text-highlight-green hover:text-black hover:bg-highlight-green transition-colors ${
+            className={`w-8 h-8 flex items-center justify-center text-highlight-green hover:text-white hover:bg-highlight-green transition-colors ${
               currentPage === totalPages
                 ? "text-gray-500 cursor-not-allowed"
                 : ""
@@ -476,7 +494,7 @@ export default function TeamsPage() {
           <button
             onClick={() => goToPage(totalPages)}
             disabled={currentPage === totalPages}
-            className={`w-8 h-8 flex items-center justify-center text-highlight-green hover:text-black hover:bg-highlight-green transition-colors ${
+            className={`w-8 h-8 flex items-center justify-center text-highlight-green hover:text-white hover:bg-highlight-green transition-colors ${
               currentPage === totalPages
                 ? "text-gray-500 cursor-not-allowed"
                 : ""
@@ -502,7 +520,7 @@ export default function TeamsPage() {
               </h3>
               <button
                 onClick={() => setIsModalOpen(false)}
-                className="absolute right-0 top-0 w-12 h-12 flex items-center justify-center rounded-full border-2 border-highlight-green text-highlight-green hover:bg-highlight-green hover:text-black transition"
+                className="absolute right-0 top-0 w-12 h-12 flex items-center justify-center rounded-full border-2 border-highlight-green text-highlight-green hover:bg-highlight-green hover:text-white transition"
                 aria-label="Fechar Modal"
               >
                 <AiOutlineClose size={24} />
@@ -528,7 +546,7 @@ export default function TeamsPage() {
               </h3>
               <button
                 onClick={() => setIsModalOpen(false)}
-                className="absolute right-0 top-0 w-12 h-12 flex items-center justify-center rounded-full border-2 border-highlight-green text-highlight-green hover:bg-highlight-green hover:text-black transition"
+                className="absolute right-0 top-0 w-12 h-12 flex items-center justify-center rounded-full border-2 border-highlight-green text-highlight-green hover:bg-highlight-green hover:text-white transition"
                 aria-label="Fechar Modal"
               >
                 <AiOutlineClose size={24} />
@@ -563,44 +581,43 @@ export default function TeamsPage() {
       >
         <div className="w-full h-full overflow-hidden">
           <div
-            className={`flex w-[300%] h-full transition-transform duration-500 ease-in-out`}
+            className={`flex w-[400%] h-full transition-transform duration-500 ease-in-out`}
             style={{
               transform:
                 drawerView === "add"
                   ? "translateX(0%)"
                   : drawerView === "list"
-                  ? "translateX(-33.3333%)"
-                  : "translateX(-66.6666%)",
+                  ? "translateX(-25%)"
+                  : drawerView === "stats"
+                  ? "translateX(-50%)"
+                  : "translateX(-75%)", // Edit
             }}
           >
-            {/* CADASTRO */}
-            <div className="w-1/3 h-full overflow-hidden px-6 py-6 flex flex-col">
-              <div className="flex justify-between items-start mb-4">
+            {/* CADASTRAR */}
+            <div className="w-1/4 h-full px-6 py-6 overflow-y-auto">
+              <div className="flex justify-between items-center mb-4">
                 <h3 className="text-2xl font-bold text-highlight-green">
                   Cadastrar Jogador
                 </h3>
                 <button
                   onClick={() => setDrawerView("list")}
-                  className="w-10 h-10 flex items-center justify-center rounded-full border-2 border-highlight-green text-highlight-green hover:bg-highlight-green hover:text-black transition-colors"
-                  aria-label="Voltar"
+                  className="w-10 h-10 flex items-center justify-center rounded-full border-2 border-highlight-green text-highlight-green hover:bg-highlight-green hover:text-white transition"
                 >
                   <ArrowRight className="w-5 h-5" />
                 </button>
               </div>
-              <div className="flex-1 overflow-y-auto pr-2">
-                <UpsertPlayersForm
-                  teamId={selectedTeam?.id!}
-                  onSubmitSuccess={() => {
-                    fetchPlayersByTeamId(selectedTeam?.id!);
-                    setDrawerView("list");
-                  }}
-                  existingPlayer={selectedPlayer}
-                />
-              </div>
+              <UpsertPlayersForm
+                teamId={selectedTeam?.id!}
+                onSubmitSuccess={() => {
+                  fetchPlayersByTeamId(selectedTeam?.id!);
+                  setDrawerView("list");
+                }}
+                existingPlayer={null}
+              />
             </div>
 
             {/* LISTA */}
-            <div className="w-1/3 h-full overflow-y-scroll scrollbar-hidden px-6 py-6 bg-gray-900/70 backdrop-blur-md rounded-tr-2xl">
+            <div className="w-1/4 h-full px-6 py-6 overflow-y-auto bg-gray-900/70 backdrop-blur-md rounded-tr-2xl">
               <div className="flex justify-between items-center mb-6">
                 <h3 className="text-2xl font-bold text-highlight-green">
                   Jogadores de {selectedTeam?.name}
@@ -610,151 +627,118 @@ export default function TeamsPage() {
                     setSelectedPlayer(null);
                     setDrawerView("add");
                   }}
-                  className="w-10 h-10 flex items-center justify-center rounded-full border-2 border-highlight-green text-highlight-green hover:bg-highlight-green hover:text-black transition-colors"
-                  aria-label="Adicionar Jogador"
+                  className="w-10 h-10 flex items-center justify-center rounded-full border-2 border-highlight-green text-highlight-green hover:bg-highlight-green hover:text-white transition"
                 >
                   <AiOutlinePlus size={20} />
                 </button>
               </div>
-
-              <div className="rounded-lg overflow-hidden border border-gray-700">
+              <div className="rounded-lg border border-gray-700">
                 <Table>
-                  <thead className="bg-gray-900 uppercase text-sm text-gray-400 shadow-md shadow-black/10 border-b border-gray-700">
+                  <thead className="bg-gray-900 uppercase text-sm text-gray-400 border-b border-gray-700">
                     <tr>
                       <th className="px-6 py-3 text-left">País</th>
                       <th className="px-6 py-3 text-left">Status</th>
                       <th className="px-6 py-3 text-left">Nome</th>
-                      <th
-                        onClick={toggleSortByPosition}
-                        className="px-6 py-3 text-left cursor-pointer hover:text-white transition-transform hover:scale-110"
-                      >
-                        <div className="flex items-center gap-2">
-                          Posição
-                          <ArrowUpDown
-                            className={`w-4 h-4 transition-transform ${
-                              sortByPosition && sortDirectionPlayers === "desc"
-                                ? "rotate-180"
-                                : "rotate-0"
-                            } ${sortByPosition ? "opacity-100" : "opacity-30"}`}
-                          />
-                        </div>
-                      </th>
+                      <th className="px-6 py-3 text-left">Posição</th>
                       <th className="px-6 py-3 text-left">Idade</th>
                       <th className="px-6 py-3 text-left">Contratado</th>
                       <th className="px-6 py-3 text-left">Preço (R$)</th>
                       <th className="px-6 py-3 text-left">Ações</th>
-                      {""}
                     </tr>
                   </thead>
-                  <tbody className="bg-gray-950 divide-y divide-gray-800 text-gray-300">
-                    {players.length === 0 ? (
-                      <tr>
-                        <td
-                          colSpan={8}
-                          className="text-center py-6 italic text-gray-500"
-                        >
-                          Nenhum jogador encontrado.
-                        </td>
-                      </tr>
-                    ) : (
-                      players.map((p) => (
-                        <tr
-                          key={p.id}
-                          onClick={async () => {
-                            setSelectedPlayer(p);
-                            await fetchPlayerStatsById(p.id);
-                            setDrawerView("stats");
-                          }}
-                          className="hover:bg-gray-900 transition-colors cursor-pointer"
-                        >
-                          <td className="px-6 py-3">
-                            <div className="flex items-center gap-2">
-                              <img
-                                src={`https://flagcdn.com/w40/${p.nationality.toLowerCase()}.png`}
-                                alt={p.nationality}
-                                className="w-6 h-4 object-cover rounded-sm border border-white/10"
-                              />
-                              <span className="capitalize">
-                                {Object.keys(countries).find(
-                                  (key) => countries[key] === p.nationality
-                                ) || p.nationality}
-                              </span>
-                            </div>
-                          </td>
+                  <tbody className="bg-gray-950 divide-y divide-gray-800 text-white">
+  {players.length === 0 ? (
+    <tr>
+      <td colSpan={8} className="text-center py-6 italic">
+        Nenhum jogador encontrado.
+      </td>
+    </tr>
+  ) : (
+    players.map((p) => (
+      <tr
+        key={p.id}
+        className="hover:bg-gray-900 cursor-pointer"
+        onClick={async () => {
+          setSelectedPlayer(p);
+          await fetchPlayerStatsById(p.id);
+          setDrawerView("stats");
+        }}
+      >
+        <td className="px-6 py-3">
+          <div className="flex items-center gap-2">
+            <img
+              src={`https://flagcdn.com/w40/${p.nationality.toLowerCase()}.png`}
+              alt={p.nationality}
+              className="w-6 h-4 rounded-sm border border-white/10"
+            />
+            <span>{p.nationality}</span>
+          </div>
+        </td>
 
-                          <td className="px-6 py-3 flex justify-center">
-                            <StatusIcon status={p.status} />
-                          </td>
+        <td className="px-6 py-3 flex justify-center">
+          <StatusIcon status={p.status} />
+        </td>
 
-                          <td className="px-6 py-3 font-semibold text-highlight-green capitalize">
-                            {p.name}
-                          </td>
+        <td className="px-6 py-3 font-semibold text-highlight-green capitalize">
+          {p.name}
+        </td>
 
-                          <td className="px-6 py-3 capitalize">{p.position}</td>
+        <td className="px-6 py-3 capitalize">{p.position}</td>
 
-                          <td className="px-6 py-3 text-center">{p.age}</td>
+        <td className="px-6 py-3 text-center">{p.age}</td>
 
-                          <td className="px-6 py-3 text-center">
-                            {new Date(p.join_date).toLocaleDateString("pt-BR")}
-                          </td>
+        <td className="px-6 py-3 text-center">
+          {new Date(p.join_date).toLocaleDateString("pt-BR")}
+        </td>
 
-                          <td className="px-6 py-3 text-right">
-                            <span className="text-highlight-green">R$</span>{" "}
-                            {new Intl.NumberFormat("pt-BR", {
-                              minimumFractionDigits: 2,
-                              maximumFractionDigits: 2,
-                            }).format(p.value)}
-                          </td>
+        <td className="px-6 py-3 text-right">
+          R$ {p.value.toLocaleString("pt-BR")}
+        </td>
 
-                          <td className="px-6 py-3 flex gap-3 justify-center">
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setSelectedPlayer(p);
-                                setDrawerView("add");
-                              }}
-                              title="Editar jogador"
-                              className="p-2 rounded-md bg-highlight-green/20 text-highlight-green hover:bg-highlight-green transition"
-                              aria-label="Editar jogador"
-                            >
-                              <FiEdit size={18} />
-                            </button>
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setSelectedPlayer(p);
-                                setDrawerView("stats");
-                              }}
-                              title="Adicionar estatísticas"
-                              aria-label="Adicionar estatísticas"
-                              className="p-1.5 border-2 border-highlight-green rounded-md text-highlight-green hover:bg-highlight-green hover:text-white transition"
-                            >
-                              <FiBarChart2 size={16} />
-                            </button>
-                          </td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
+        <td className="px-6 py-3 flex gap-2 justify-center">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setSelectedPlayer(p);
+              setDrawerView("edit");
+            }}
+            className="p-2 rounded-md bg-highlight-green/20 text-highlight-green hover:bg-highlight-green hover:text-white transition"
+          >
+            <FiEdit size={18} />
+          </button>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setSelectedPlayer(p);
+              setDrawerView("stats");
+            }}
+            className="p-2 border-2 border-highlight-green rounded-md text-highlight-green hover:bg-highlight-green hover:text-white transition"
+          >
+            <FiBarChart2 size={16} />
+          </button>
+        </td>
+      </tr>
+    ))
+  )}
+</tbody>
+
                 </Table>
               </div>
             </div>
 
             {/* ESTATÍSTICAS */}
-            <div className="w-1/3 h-full px-6 py-6 space-y-6">
+            <div className="w-1/4 h-full px-6 py-6 space-y-6">
               <div className="flex justify-between items-center mb-4">
                 <h3 className="text-2xl font-bold text-highlight-green">
                   Estatísticas de {selectedPlayer?.name ?? "Jogador"}
                 </h3>
                 <button
                   onClick={() => setDrawerView("list")}
-                  className="w-10 h-10 flex items-center justify-center rounded-full border-2 border-highlight-green text-highlight-green hover:bg-highlight-green hover:text-black transition-colors shadow-md"
-                  aria-label="Voltar"
+                  className="w-10 h-10 flex items-center justify-center rounded-full border-2 border-highlight-green text-highlight-green hover:bg-highlight-green hover:text-black transition"
                 >
                   <ArrowLeft className="w-5 h-5" />
                 </button>
               </div>
-
               {playerStats ? (
                 <StatsGraphs
                   stats={playerStats}
@@ -762,14 +746,37 @@ export default function TeamsPage() {
                     selectedPlayer?.position &&
                     positionProfiles[selectedPlayer.position]
                       ? selectedPlayer.position
-                      : "ATA" // posição padrão para evitar erro
+                      : "ATA"
                   }
                 />
               ) : (
                 <p className="text-center text-sm text-gray-500 italic">
-                  Nenhuma estatística encontrada para este jogador.
+                  Nenhuma estatística encontrada.
                 </p>
               )}
+            </div>
+
+            {/* EDITAR */}
+            <div className="w-1/4 h-full px-6 py-6 overflow-y-auto">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-2xl font-bold text-highlight-green">
+                  Editar Jogador
+                </h3>
+                <button
+                  onClick={() => setDrawerView("list")}
+                  className="w-10 h-10 flex items-center justify-center rounded-full border-2 border-highlight-green text-highlight-green hover:bg-highlight-green hover:text-black transition"
+                >
+                  <ArrowRight className="w-5 h-5" />
+                </button>
+              </div>
+              <EditPlayersForm
+                teamId={selectedTeam?.id!}
+                existingPlayer={selectedPlayer}
+                onSubmitSuccess={() => {
+                  fetchPlayersByTeamId(selectedTeam?.id!);
+                  setDrawerView("list");
+                }}
+              />
             </div>
           </div>
         </div>
