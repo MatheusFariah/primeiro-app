@@ -76,6 +76,10 @@ p {
     transform: translateY(0);
   }
 }
+/* globals.css */
+.swal2-container {
+  z-index: 99999 !important;
+}
 
 .animate-slide-up {
   animation: slide-up 0.3s ease-out;
@@ -86,9 +90,10 @@ p {
   -ms-overflow-style: none;  /* IE e Edge */
   scrollbar-width: none;     /* Firefox */
 }
-.scrollbar-hidden::-webkit-scrollbar {
-  display: none;             /* Chrome, Safari e outros WebKit */
-}
+ html::-webkit-scrollbar,
+  body::-webkit-scrollbar {
+    display: none;              /* Chrome, Safari e WebKit */
+  }
 
 @keyframes fade-slide {
   0% {

@@ -302,12 +302,12 @@ export default function TeamsPage() {
   };
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-8">
+    <div className="max-w-6xl mx-auto px-4 py-8 overflow-hidden">
       {statusMessage && (
         <div
-          className={`mb-6 text-center px-6 py-3 rounded-2xl shadow-lg font-bold text-lg animate-slide-up transition-all duration-500 ${
+          className={`mb-6 text-center  px-6 py-3 rounded-2xl shadow-lg font-bold text-lg animate-slide-up transition-all duration-500 ${
             statusType === "success"
-              ? "bg-highlight-green text-white"
+              ? "bg-highlight-green text-white "
               : "bg-red-600 text-white"
           }`}
         >
@@ -579,7 +579,7 @@ export default function TeamsPage() {
           },
         }}
       >
-        <div className="w-full h-full overflow-hidden">
+        <div className="w-full h-full overflow-y-auto scrollbar-hidden">
           <div
             className={`flex w-[400%] h-full transition-transform duration-500 ease-in-out`}
             style={{
@@ -594,7 +594,7 @@ export default function TeamsPage() {
             }}
           >
             {/* CADASTRAR */}
-            <div className="w-1/4 h-full px-6 py-6 overflow-y-auto">
+            <div className="w-1/4 h-full px-6 py-6 overflow-y-auto scrollbar-hidden">
               <div className="flex justify-between items-center mb-4">
                 <h3 className="text-2xl font-bold text-highlight-green">
                   Cadastrar Jogador
@@ -617,7 +617,7 @@ export default function TeamsPage() {
             </div>
 
             {/* LISTA */}
-            <div className="w-1/4 h-full px-6 py-6 overflow-y-auto bg-gray-900/70 backdrop-blur-md rounded-tr-2xl">
+            <div className="w-1/4 h-full px-6 py-6 overflow-y-auto scrollbar-hidden bg-gray-900/70 backdrop-blur-md rounded-tr-2xl">
               <div className="flex justify-between items-center mb-6">
                 <h3 className="text-2xl font-bold text-highlight-green">
                   Jogadores de {selectedTeam?.name}
@@ -647,81 +647,80 @@ export default function TeamsPage() {
                     </tr>
                   </thead>
                   <tbody className="bg-gray-950 divide-y divide-gray-800 text-white">
-  {players.length === 0 ? (
-    <tr>
-      <td colSpan={8} className="text-center py-6 italic">
-        Nenhum jogador encontrado.
-      </td>
-    </tr>
-  ) : (
-    players.map((p) => (
-      <tr
-        key={p.id}
-        className="hover:bg-gray-900 cursor-pointer"
-        onClick={async () => {
-          setSelectedPlayer(p);
-          await fetchPlayerStatsById(p.id);
-          setDrawerView("stats");
-        }}
-      >
-        <td className="px-6 py-3">
-          <div className="flex items-center gap-2">
-            <img
-              src={`https://flagcdn.com/w40/${p.nationality.toLowerCase()}.png`}
-              alt={p.nationality}
-              className="w-6 h-4 rounded-sm border border-white/10"
-            />
-            <span>{p.nationality}</span>
-          </div>
-        </td>
+                    {players.length === 0 ? (
+                      <tr>
+                        <td colSpan={8} className="text-center py-6 italic">
+                          Nenhum jogador encontrado.
+                        </td>
+                      </tr>
+                    ) : (
+                      players.map((p) => (
+                        <tr
+                          key={p.id}
+                          className="hover:bg-gray-900 cursor-pointer"
+                          onClick={async () => {
+                            setSelectedPlayer(p);
+                            await fetchPlayerStatsById(p.id);
+                            setDrawerView("stats");
+                          }}
+                        >
+                          <td className="px-6 py-3">
+                            <div className="flex items-center gap-2">
+                              <img
+                                src={`https://flagcdn.com/w40/${p.nationality.toLowerCase()}.png`}
+                                alt={p.nationality}
+                                className="w-6 h-4 rounded-sm border border-white/10"
+                              />
+                              <span>{p.nationality}</span>
+                            </div>
+                          </td>
 
-        <td className="px-6 py-3 flex justify-center">
-          <StatusIcon status={p.status} />
-        </td>
+                          <td className="px-6 py-3 flex justify-center">
+                            <StatusIcon status={p.status} />
+                          </td>
 
-        <td className="px-6 py-3 font-semibold text-highlight-green capitalize">
-          {p.name}
-        </td>
+                          <td className="px-6 py-3 font-semibold text-highlight-green capitalize">
+                            {p.name}
+                          </td>
 
-        <td className="px-6 py-3 capitalize">{p.position}</td>
+                          <td className="px-6 py-3 capitalize">{p.position}</td>
 
-        <td className="px-6 py-3 text-center">{p.age}</td>
+                          <td className="px-6 py-3 text-center">{p.age}</td>
 
-        <td className="px-6 py-3 text-center">
-          {new Date(p.join_date).toLocaleDateString("pt-BR")}
-        </td>
+                          <td className="px-6 py-3 text-center">
+                            {new Date(p.join_date).toLocaleDateString("pt-BR")}
+                          </td>
 
-        <td className="px-6 py-3 text-right">
-          R$ {p.value.toLocaleString("pt-BR")}
-        </td>
+                          <td className="px-6 py-3 text-right">
+                            R$ {p.value.toLocaleString("pt-BR")}
+                          </td>
 
-        <td className="px-6 py-3 flex gap-2 justify-center">
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              setSelectedPlayer(p);
-              setDrawerView("edit");
-            }}
-            className="p-2 rounded-md bg-highlight-green/20 text-highlight-green hover:bg-highlight-green hover:text-white transition"
-          >
-            <FiEdit size={18} />
-          </button>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              setSelectedPlayer(p);
-              setDrawerView("stats");
-            }}
-            className="p-2 border-2 border-highlight-green rounded-md text-highlight-green hover:bg-highlight-green hover:text-white transition"
-          >
-            <FiBarChart2 size={16} />
-          </button>
-        </td>
-      </tr>
-    ))
-  )}
-</tbody>
-
+                          <td className="px-6 py-3 flex gap-2 justify-center">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedPlayer(p);
+                                setDrawerView("edit");
+                              }}
+                              className="p-2 rounded-md bg-highlight-green/20 text-highlight-green hover:bg-highlight-green hover:text-white transition"
+                            >
+                              <FiEdit size={18} />
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedPlayer(p);
+                                setDrawerView("stats");
+                              }}
+                              className="p-2 border-2 border-highlight-green rounded-md text-highlight-green hover:bg-highlight-green hover:text-white transition"
+                            >
+                              <FiBarChart2 size={16} />
+                            </button>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
                 </Table>
               </div>
             </div>
@@ -757,7 +756,7 @@ export default function TeamsPage() {
             </div>
 
             {/* EDITAR */}
-            <div className="w-1/4 h-full px-6 py-6 overflow-y-auto">
+            <div className="w-1/4 h-full px-6 py-6 overflow-y-auto scrollbar-hidden">
               <div className="flex justify-between items-center mb-4">
                 <h3 className="text-2xl font-bold text-highlight-green">
                   Editar Jogador
@@ -766,17 +765,25 @@ export default function TeamsPage() {
                   onClick={() => setDrawerView("list")}
                   className="w-10 h-10 flex items-center justify-center rounded-full border-2 border-highlight-green text-highlight-green hover:bg-highlight-green hover:text-black transition"
                 >
-                  <ArrowRight className="w-5 h-5" />
+                  <ArrowLeft className="w-5 h-5" />
                 </button>
               </div>
-              <EditPlayersForm
-                teamId={selectedTeam?.id!}
-                existingPlayer={selectedPlayer}
-                onSubmitSuccess={() => {
-                  fetchPlayersByTeamId(selectedTeam?.id!);
-                  setDrawerView("list");
-                }}
-              />
+              {selectedPlayer && (
+                <EditPlayersForm
+                  teamId={selectedTeam!.id}
+                  existingPlayer={selectedPlayer}
+                  onSubmitSuccess={() => {
+                    // 1) Recarrega a lista de jogadores
+                    fetchPlayersByTeamId(selectedTeam!.id);
+
+                    // 2) Limpa o jogador excluído
+                    setSelectedPlayer(null);
+
+                    // 3) Volta para a aba “list” do Drawer (até aqui, o Drawer continua aberto)
+                    setDrawerView("list");
+                  }}
+                />
+              )}
             </div>
           </div>
         </div>

@@ -17,8 +17,8 @@ import {
   YAxis,
   CartesianGrid,
   Legend,
+  LabelList,
   Tooltip as RechartsTooltip,
-  TooltipProps,
 } from "recharts";
 import { FaBullseye, FaCrosshairs, FaFutbol } from "react-icons/fa";
 import Box from "@mui/material/Box";
@@ -79,7 +79,13 @@ export const positionProfiles: Record<
     radarStats: [
       { key: "matches_played", label: "Partidas", max: 38, weight: 1 },
       { key: "saves", label: "Defesas", max: 150, weight: 2 },
-      { key: "goals_conceded", label: "Gols sofridos", max: 20, weight: 2, invert: true },
+      {
+        key: "goals_conceded",
+        label: "Gols sofridos",
+        max: 20,
+        weight: 2,
+        invert: true,
+      },
       { key: "penalties_saved", label: "Pênaltis salvos", max: 5, weight: 1.5 },
       { key: "high_claims", label: "Cruzamentos", max: 50, weight: 1 },
     ],
@@ -100,7 +106,13 @@ export const positionProfiles: Record<
       { key: "interceptions", label: "Intercep.", max: 100, weight: 2 },
       { key: "correct_passes", label: "P.Cert", max: 400, weight: 1 },
       { key: "goals", label: "Gols", max: 5, weight: 0.8 },
-      { key: "yellow_cards", label: "Amarelos", max: 10, weight: 1, invert: true },
+      {
+        key: "yellow_cards",
+        label: "Cartão",
+        max: 10,
+        weight: 1,
+        invert: true,
+      },
     ],
     pieStats: [
       { key: "correct_passes", label: "P.Cert", type: "success" },
@@ -116,7 +128,13 @@ export const positionProfiles: Record<
       { key: "interceptions", label: "Intercep.", max: 80, weight: 1.5 },
       { key: "correct_passes", label: "P.Cert", max: 500, weight: 1.5 },
       { key: "assists", label: "Assistências", max: 10, weight: 1.2 },
-      { key: "yellow_cards", label: "Amarelos", max: 12, weight: 1, invert: true },
+      {
+        key: "yellow_cards",
+        label: "Amarelos",
+        max: 12,
+        weight: 1,
+        invert: true,
+      },
     ],
     pieStats: [
       { key: "correct_passes", label: "P.Cert", type: "success" },
@@ -163,7 +181,9 @@ export const positionProfiles: Record<
 };
 
 // Mapear posições similares
-["PE", "PD", "SA"].forEach((p) => (positionProfiles[p] = { ...positionProfiles.ATA }));
+["PE", "PD", "SA"].forEach(
+  (p) => (positionProfiles[p] = { ...positionProfiles.ATA })
+);
 ["LAT"].forEach((p) => (positionProfiles[p] = { ...positionProfiles.ZAG }));
 
 interface StatsGraphsProps {
@@ -182,23 +202,32 @@ export default function StatsGraphs({ stats, position }: StatsGraphsProps) {
     (stats.saves ?? 0) > 0 ||
     (stats.goals_conceded ?? 0) > 0;
 
-  // Cálculo de precisão
+  // Cálculo de precisão de passes
   const totalPasses = stats.correct_passes + stats.incorrect_passes;
-  const passPrecision = ((stats.correct_passes / (totalPasses || 1)) * 100).toFixed(1);
+  const passPrecision = (
+    (stats.correct_passes / (totalPasses || 1)) *
+    100
+  ).toFixed(1);
 
+  // Cálculo de precisão de chutes
   const totalShots = stats.successful_shots + stats.unsuccessful_shots;
-  const shotPrecision = ((stats.successful_shots / (totalShots || 1)) * 100).toFixed(1);
+  const shotPrecision = (
+    (stats.successful_shots / (totalShots || 1)) *
+    100
+  ).toFixed(1);
 
-  // Radar
-  const radarData = profile.radarStats.map(({ key, label, max, weight, invert }) => {
-    const raw = stats[key] ?? 0;
-    const norm = Math.min((raw / max) * 100, 100);
-    const value = invert ? 100 - norm : norm;
-    return {
-      label: `${label} (${raw})`,
-      value: parseFloat((value * weight).toFixed(2)),
-    };
-  });
+  // Dados para RadarChart
+  const radarData = profile.radarStats.map(
+    ({ key, label, max, weight, invert }) => {
+      const raw = stats[key] ?? 0;
+      const norm = Math.min((raw / max) * 100, 100);
+      const value = invert ? 100 - norm : norm;
+      return {
+        label: `${label} (${raw})`,
+        value: parseFloat((value * weight).toFixed(2)),
+      };
+    }
+  );
 
   function calculateRating(stats: PlayerStats, position: string) {
     const prof = positionProfiles[position] || positionProfiles["ATA"];
@@ -220,18 +249,34 @@ export default function StatsGraphs({ stats, position }: StatsGraphsProps) {
     return Math.min(Math.max(rating, 0), 5);
   }
 
-  // Pie
+  // Dados para PieChart
   const pieData = isGoalkeeper
     ? [
-        { label: "Defesas", value: stats.saves ?? 0, color: theme.palette.success.main },
-        { label: "Gols sofridos", value: stats.goals_conceded ?? 0, color: theme.palette.error.main },
+        {
+          label: "Defesas",
+          value: stats.saves ?? 0,
+          color: theme.palette.success.main,
+        },
+        {
+          label: "Gols sofridos",
+          value: stats.goals_conceded ?? 0,
+          color: theme.palette.error.main,
+        },
       ]
     : [
-        { label: "P.Cert", value: stats.correct_passes, color: theme.palette.success.main },
-        { label: "Passes errados", value: stats.incorrect_passes, color: theme.palette.error.main },
+        {
+          label: "Passos Certos",
+          value: stats.correct_passes,
+          color: theme.palette.success.main,
+        },
+        {
+          label: "Passes errados",
+          value: stats.incorrect_passes,
+          color: theme.palette.error.main,
+        },
       ];
 
-  // Bar
+  // Dados para BarChart
   const barData = isGoalkeeper
     ? [
         {
@@ -247,38 +292,6 @@ export default function StatsGraphs({ stats, position }: StatsGraphsProps) {
           Erradas: stats.unsuccessful_shots,
         },
       ];
-
-  // Tooltip customizado para gráfico
-  const CustomTooltip = ({ payload }: TooltipProps<any, any>) => {
-    if (!payload || payload.length === 0) return null;
-    const item = payload[0];
-    const name = item.payload.label || item.name;
-    const value = item.value;
-
-    return (
-      <Box
-        className="scrollbar-hidden"
-        sx={{
-          display: "flex",
-          justifyContent: "center",
-          alignItems: "flex-start",
-          flexWrap: "wrap",
-          gap: 3,
-          px: 4,
-          py: 4,
-          width: "100%",
-          fontFamily: "'Inter', sans-serif",
-        }}
-      >
-        <Typography
-          variant="caption"
-          sx={{ color: "#e0e0e0", fontWeight: 500, fontSize: 13 }}
-        >
-          {name}: {value}
-        </Typography>
-      </Box>
-    );
-  };
 
   return (
     <Box
@@ -317,57 +330,109 @@ export default function StatsGraphs({ stats, position }: StatsGraphsProps) {
         <CardHeader
           avatar={<FaBullseye color={theme.palette.success.main} />}
           title="Precisão de passes"
-          titleTypographyProps={{ variant: "subtitle1", sx: { fontWeight: 700, color: "#fff" } }}
+          titleTypographyProps={{
+            variant: "subtitle1",
+            sx: { fontWeight: 700, color: "#fff" },
+          }}
           sx={{ pb: 0 }}
         />
         <CardContent sx={{ flex: 1 }}>
           <ResponsiveContainer width="100%" height={260}>
             <RechartsPieChart>
               <defs>
+                {/* Gradiente de “Passos Certos” */}
                 <linearGradient id="passCorrect" x1="0" y1="0" x2="1" y2="1">
-                  <stop offset="50%" stopColor="#00963e" />
-                  <stop offset="100%" stopColor="#007E33" />
+                  <stop offset="50%" stopColor="#43a047" />
+                  <stop offset="100%" stopColor="#2e7d32" />
                 </linearGradient>
+
+                {/* Gradiente de “Passes Errados” */}
                 <linearGradient id="passWrong" x1="1" y1="0" x2="1" y2="2">
-                  <stop offset="50%" stopColor="#ce0101" />
-                  <stop offset="100%" stopColor="#CC0000" />
+                  <stop offset="50%" stopColor="#ef5350" />
+                  <stop offset="100%" stopColor="#c62828" />
                 </linearGradient>
-                <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
-                  <feDropShadow dx="4" dy="7" stdDeviation="4" floodColor="#000" floodOpacity="0.4" />
+
+                {/* Sombra discreta abaixo do círculo */}
+                <filter
+                  id="shadow"
+                  x="-20%"
+                  y="-20%"
+                  width="140%"
+                  height="140%"
+                >
+                  <feDropShadow
+                    dx="1"
+                    dy="2"
+                    stdDeviation="2"
+                    floodColor="#000"
+                    floodOpacity="0.2"
+                  />
                 </filter>
               </defs>
+
               <Pie
                 data={pieData}
                 dataKey="value"
                 nameKey="label"
-                paddingAngle={0}
                 startAngle={90}
                 endAngle={-270}
-                cornerRadius={0}
-                stroke="none"
+                innerRadius={45}
+                outerRadius={80}
+                paddingAngle={2}
+                cornerRadius={5}
+                stroke="#1f1f2d"
+                strokeWidth={1}
                 animationDuration={900}
                 filter="url(#shadow)"
               >
                 <Cell fill="url(#passCorrect)" />
                 <Cell fill="url(#passWrong)" />
               </Pie>
+
               <Legend
                 verticalAlign="top"
                 align="center"
                 iconType="circle"
-                wrapperStyle={{ color: "#bbb", fontSize: 13, display: "flex", justifyContent: "center", gap: 30, paddingBottom: 10 }}
+                wrapperStyle={{
+                  color: "#bbb",
+                  fontSize: 13,
+                  display: "flex",
+                  justifyContent: "center",
+                  gap: 30,
+                  paddingBottom: 10,
+                }}
+                payload={[
+                  {
+                    value: isGoalkeeper ? "Defesas" : "Passos Certos",
+                    type: "circle",
+                    color: isGoalkeeper
+                      ? theme.palette.success.main
+                      : theme.palette.success.main,
+                  },
+                  {
+                    value: isGoalkeeper
+                      ? "Gols sofridos"
+                      : "Passes errados",
+                    type: "circle",
+                    color: isGoalkeeper
+                      ? theme.palette.error.main
+                      : theme.palette.error.main,
+                  },
+                ]}
               />
+
               <RechartsTooltip
                 wrapperStyle={{ outline: "none" }}
                 contentStyle={{
                   backgroundColor: "rgba(17,17,17,0.85)",
                   border: "1px solid rgba(255,255,255,0.1)",
-                  borderRadius: 10,
-                  boxShadow: "0 8px 20px rgba(0,0,0,0.6)",
-                  backdropFilter: "blur(8px)",
+                  borderRadius: 8,
+                  boxShadow: "0 6px 16px rgba(0,0,0,0.5)",
+                  backdropFilter: "blur(5px)",
+                  padding: "6px 10px",
                 }}
                 itemStyle={{ color: "#fff", fontSize: 12 }}
-                labelStyle={{ color: "#bbb", fontWeight: 600, fontSize: 12 }}
+                labelStyle={{ color: "#bbb", fontWeight: 500, fontSize: 12 }}
                 cursor={{ fill: "transparent" }}
               />
             </RechartsPieChart>
@@ -405,17 +470,28 @@ export default function StatsGraphs({ stats, position }: StatsGraphsProps) {
         <CardHeader
           avatar={<FaFutbol color={theme.palette.success.main} />}
           title="Desempenho geral"
-          titleTypographyProps={{ variant: "subtitle1", sx: { fontWeight: 700, color: "#fff" } }}
+          titleTypographyProps={{
+            variant: "subtitle1",
+            sx: { fontWeight: 700, color: "#fff" },
+          }}
           sx={{ pb: 0 }}
         />
         <CardContent sx={{ flex: 1, display: "flex", flexDirection: "column" }}>
           <Box sx={{ flex: 1 }}>
             <ResponsiveContainer width="100%" height="100%">
-              <RadarChart cx="50%" cy="60%" outerRadius="90%" data={radarData}>
+              <RadarChart cx="49%" cy="60%" outerRadius="90%" data={radarData}>
                 <defs>
                   <linearGradient id="radarGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor={theme.palette.success.main} stopOpacity={0.7} />
-                    <stop offset="100%" stopColor={theme.palette.success.main} stopOpacity={0.2} />
+                    <stop
+                      offset="0%"
+                      stopColor={theme.palette.success.main}
+                      stopOpacity={0.7}
+                    />
+                    <stop
+                      offset="100%"
+                      stopColor={theme.palette.success.main}
+                      stopOpacity={0.2}
+                    />
                   </linearGradient>
                 </defs>
                 <PolarGrid stroke="#444" radialLines={false} />
@@ -435,7 +511,6 @@ export default function StatsGraphs({ stats, position }: StatsGraphsProps) {
                   fillOpacity={1}
                   animationDuration={900}
                 />
-                <RechartsTooltip content={(args) => <CustomTooltip {...args} />} />
               </RadarChart>
             </ResponsiveContainer>
           </Box>
@@ -448,7 +523,11 @@ export default function StatsGraphs({ stats, position }: StatsGraphsProps) {
               justifyContent: "center",
             }}
           >
-            <Typography align="center" variant="subtitle2" sx={{ color: "#bbb", mb: 0.5 }}>
+            <Typography
+              align="center"
+              variant="subtitle2"
+              sx={{ color: "#bbb", mb: 0.5 }}
+            >
               Avaliação
             </Typography>
             <Stars rating={calculateRating(stats, position)} />
@@ -484,14 +563,20 @@ export default function StatsGraphs({ stats, position }: StatsGraphsProps) {
           <CardHeader
             avatar={<FaCrosshairs color={theme.palette.success.main} />}
             title={profile.barTitle}
-            titleTypographyProps={{ variant: "subtitle1", sx: { fontWeight: 700, color: "#fff" } }}
+            titleTypographyProps={{
+              variant: "subtitle1",
+              sx: { fontWeight: 700, color: "#fff" },
+            }}
             sx={{ pb: 0 }}
           />
           <CardContent sx={{ flex: 1, display: "flex", flexDirection: "column" }}>
             <Box sx={{ flex: 1 }}>
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={barData} barSize={35} margin={{ top: 20, right: 20, left: 20, bottom: 20 }}>
-                  {/* Gradientes e sombra */}
+                <BarChart
+                  data={barData}
+                  barSize={35}
+                  margin={{ top: 20, right: 20, left: 20, bottom: 20 }}
+                >
                   <defs>
                     <linearGradient id="barSuccess" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="0%" stopColor={theme.palette.success.light} />
@@ -501,38 +586,65 @@ export default function StatsGraphs({ stats, position }: StatsGraphsProps) {
                       <stop offset="0%" stopColor={theme.palette.error.light} />
                       <stop offset="100%" stopColor={theme.palette.error.dark} />
                     </linearGradient>
-                    <filter id="shadow" x="-50%" y="-50%" width="200%" height="200%">
-                      <feDropShadow dx="0" dy="2" stdDeviation="2" floodColor="#000" floodOpacity="0.4" />
+                    <filter
+                      id="shadow"
+                      x="-50%"
+                      y="-50%"
+                      width="200%"
+                      height="200%"
+                    >
+                      <feDropShadow
+                        dx="0"
+                        dy="2"
+                        stdDeviation="2"
+                        floodColor="#000"
+                        floodOpacity="0.4"
+                      />
                     </filter>
                   </defs>
 
-                  {/* Grid */}
                   <CartesianGrid stroke="#2a2a2a" vertical={false} />
 
-                  {/* Eixo X */}
-                  <XAxis dataKey="name" tick={{ fontSize: 12, fill: "#ddd", fontWeight: 500 }} axisLine={false} tickLine={false} />
+                  <XAxis
+                    dataKey="name"
+                    tick={{ fontSize: 12, fill: "#ddd", fontWeight: 500 }}
+                    axisLine={false}
+                    tickLine={false}
+                  />
 
-                  {/* Eixo Y */}
-                  <YAxis domain={[0, "dataMax + 5"]} tick={{ fontSize: 12, fill: "#ddd" }} axisLine={false} tickLine={false} />
+                  <YAxis
+                    domain={[0, "dataMax + 5"]}
+                    tick={{ fontSize: 12, fill: "#ddd" }}
+                    axisLine={false}
+                    tickLine={false}
+                  />
 
-                  {/* Tooltip */}
+                  <Legend
+                    verticalAlign="top"
+                    align="center"
+                    iconType="circle"
+                    wrapperStyle={{
+                      color: "#bbb",
+                      fontSize: 13,
+                      paddingBottom: 10,
+                    }}
+                  />
+
                   <RechartsTooltip
                     wrapperStyle={{ outline: "none" }}
                     contentStyle={{
-                      backgroundColor: "rgba(17,17,17,0.9)",
+                      backgroundColor: "rgba(17,17,17,0.85)",
                       border: "1px solid rgba(255,255,255,0.1)",
                       borderRadius: 10,
-                      boxShadow: "0 8px 20px rgba(0,0,0,0.5)",
+                      boxShadow: "0 6px 16px rgba(0,0,0,0.5)",
                       backdropFilter: "blur(8px)",
+                      padding: "6px 10px",
                     }}
-                    itemStyle={{ color: "#fff", fontSize: 12, border: "none" }}
-                    labelStyle={{ color: "#ccc", fontWeight: 600, fontSize: 12, border: "none" }}
+                    itemStyle={{ color: "#fff", fontSize: 12 }}
+                    labelStyle={{ color: "#bbb", fontWeight: 600, fontSize: 12 }}
+                    cursor={{ fill: "transparent" }}
                   />
 
-                  {/* Legenda */}
-                  <Legend verticalAlign="top" align="center" iconType="circle" wrapperStyle={{ color: "#bbb", fontSize: 13, paddingBottom: 10 }} />
-
-                  {/* Barras */}
                   {Object.keys(barData[0])
                     .filter((k) => k !== "name")
                     .map((key, i) => (
@@ -543,7 +655,14 @@ export default function StatsGraphs({ stats, position }: StatsGraphsProps) {
                         radius={[8, 8, 0, 0]}
                         style={{ filter: "url(#shadow)" }}
                         animationDuration={900}
-                      />
+                      >
+                        <LabelList
+                          dataKey={key}
+                          position="top"
+                          fill="#fff"
+                          fontSize={12}
+                        />
+                      </Bar>
                     ))}
                 </BarChart>
               </ResponsiveContainer>

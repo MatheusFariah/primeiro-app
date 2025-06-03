@@ -11,17 +11,14 @@ interface EditPlayersFormProps {
   teamId: number;
   existingPlayer: any;
   onSubmitSuccess: () => void;
-  onRequestDelete?: () => void;
-  onCancelDelete?: () => void;
+  // Note que removemos a prop onCancelDelete, já não a usamos aqui
 }
 
 export default function EditPlayersForm({
   teamId,
   existingPlayer,
   onSubmitSuccess,
-  onRequestDelete,
-  onCancelDelete,
-}: EditPlayersFormProps) {
+}: EditPlayersFormProps): JSX.Element {
   const [form, setForm] = useState({
     name: "",
     age: "",
@@ -42,13 +39,17 @@ export default function EditPlayersForm({
     if (existingPlayer) {
       setForm({
         name: existingPlayer.name || "",
-        age: existingPlayer.age || "",
+        age: existingPlayer.age?.toString() || "",
         dob: existingPlayer.dob || "",
         position: existingPlayer.position || "",
         nationality: existingPlayer.nationality || "BR",
         status: existingPlayer.status || "ativo",
-        weight: existingPlayer.weight?.toString().replace(".", ",") || "",
-        height: existingPlayer.height?.toString().replace(".", ",") || "",
+        weight: existingPlayer.weight
+          ? existingPlayer.weight.toString().replace(".", ",")
+          : "",
+        height: existingPlayer.height
+          ? existingPlayer.height.toString().replace(".", ",")
+          : "",
         join_date: existingPlayer.join_date || "",
         value:
           existingPlayer.value?.toLocaleString("pt-BR", {
@@ -78,8 +79,9 @@ export default function EditPlayersForm({
 
     if (name === "height" || name === "weight") {
       const onlyNumbers = value.replace(/[^0-9]/g, "");
-      if (!onlyNumbers) formattedValue = "";
-      else {
+      if (!onlyNumbers) {
+        formattedValue = "";
+      } else {
         const integerPart = onlyNumbers.slice(0, -1) || "0";
         const decimalPart = onlyNumbers.slice(-1);
         formattedValue = `${parseInt(integerPart, 10)},${decimalPart}`;
@@ -118,8 +120,7 @@ export default function EditPlayersForm({
   };
 
   const handleDelete = async () => {
-    onRequestDelete?.(); // Fecha o drawer antes de abrir o SweetAlert
-
+    // 1) Pergunta de confirmação, sem tentar fechar o Drawer
     const result = await Swal.fire({
       title: "Tem certeza?",
       text: `Você deseja excluir o jogador ${form.name}?`,
@@ -133,32 +134,55 @@ export default function EditPlayersForm({
       color: "#f3f4f6",
     });
 
-    if (result.isConfirmed) {
-      setLoading(true);
-      const { error } = await supabase
-        .from("players")
-        .delete()
-        .eq("id", existingPlayer.id);
-      setLoading(false);
-
-      if (error) {
-        Swal.fire("Erro!", error.message, "error");
-      } else {
-        Swal.fire({
-          title: "Excluído!",
-          text: "Jogador removido com sucesso.",
-          icon: "success",
-          background: "#1f2937",
-          color: "#f3f4f6",
-          confirmButtonColor: "#10b981",
-        });
-        onSubmitSuccess();
-      }
-    } else {
-      onCancelDelete?.(); // Volta para edição se cancelar
+    if (!result.isConfirmed) {
+      // Se o usuário cancelar, não faz nada—o Drawer permanece aberto
+      return;
     }
+
+    // 2) Executa a deleção no Supabase
+    setLoading(true);
+    const { error } = await supabase
+      .from("players")
+      .delete()
+      .eq("id", existingPlayer.id);
+    setLoading(false);
+
+    if (error) {
+      // Em caso de erro, exibe modal de erro (com botão “OK”) e mantém o Drawer aberto
+      await Swal.fire({
+        title: "Erro!",
+        text: error.message,
+        icon: "error",
+        background: "#1f2937",
+        color: "#f3f4f6",
+        confirmButtonColor: "#10b981",
+      });
+      return;
+    }
+
+    // 3) Sucesso: mostra modal “quadrado” sem botão e com timer
+    Swal.fire({
+      title: "Excluído!",
+      text: "Jogador removido com sucesso.",
+      icon: "success",
+      background: "#1f2937",
+      color: "#f3f4f6",
+      showConfirmButton: false, // sem botão “OK”
+      timer: 1500,              // fecha em 1,5s
+      timerProgressBar: true,
+      allowOutsideClick: false,
+      customClass: {
+        popup: "rounded-lg shadow-lg",
+      },
+      willClose: () => {
+        // Quando o modal SOME, apenas atualiza a lista.
+        onSubmitSuccess();
+        // **Não chamamos mais onCancelDelete**, ou seja, não tentamos fechar o Drawer.
+      },
+    });
   };
 
+  // Função auxiliar para renderizar campo com label + input
   const renderField = (label: string, name: string, input: JSX.Element) => (
     <div className="flex flex-col">
       <label className="text-sm font-semibold text-gray-300 mb-1 uppercase tracking-wide">
