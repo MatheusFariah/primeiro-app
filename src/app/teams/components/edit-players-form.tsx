@@ -11,7 +11,6 @@ interface EditPlayersFormProps {
   teamId: number;
   existingPlayer: any;
   onSubmitSuccess: () => void;
-  // Note que removemos a prop onCancelDelete, já não a usamos aqui
 }
 
 export default function EditPlayersForm({
@@ -31,7 +30,6 @@ export default function EditPlayersForm({
     join_date: "",
     value: "",
   });
-
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -91,22 +89,27 @@ export default function EditPlayersForm({
     setForm((prev) => ({ ...prev, [name]: formattedValue }));
   };
 
+  const parseNumber = (str: string) => Number(str.replace(",", "."));
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
 
-    const parseNumber = (str: string) => Number(str.replace(",", "."));
-
     const { error } = await supabase
       .from("players")
       .update({
-        ...form,
-        teams_id: teamId,
+        name: form.name,
         age: Number(form.age),
+        dob: form.dob,
+        position: form.position,
+        nationality: form.nationality,
+        status: form.status,
         weight: parseNumber(form.weight),
         height: parseNumber(form.height),
+        join_date: form.join_date,
         value: parseNumber(form.value),
+        teams_id: teamId,
       })
       .eq("id", existingPlayer.id);
 
@@ -120,7 +123,6 @@ export default function EditPlayersForm({
   };
 
   const handleDelete = async () => {
-    // 1) Pergunta de confirmação, sem tentar fechar o Drawer
     const result = await Swal.fire({
       title: "Tem certeza?",
       text: `Você deseja excluir o jogador ${form.name}?`,
@@ -134,12 +136,8 @@ export default function EditPlayersForm({
       color: "#f3f4f6",
     });
 
-    if (!result.isConfirmed) {
-      // Se o usuário cancelar, não faz nada—o Drawer permanece aberto
-      return;
-    }
+    if (!result.isConfirmed) return;
 
-    // 2) Executa a deleção no Supabase
     setLoading(true);
     const { error } = await supabase
       .from("players")
@@ -148,7 +146,6 @@ export default function EditPlayersForm({
     setLoading(false);
 
     if (error) {
-      // Em caso de erro, exibe modal de erro (com botão “OK”) e mantém o Drawer aberto
       await Swal.fire({
         title: "Erro!",
         text: error.message,
@@ -160,29 +157,25 @@ export default function EditPlayersForm({
       return;
     }
 
-    // 3) Sucesso: mostra modal “quadrado” sem botão e com timer
     Swal.fire({
       title: "Excluído!",
       text: "Jogador removido com sucesso.",
       icon: "success",
       background: "#1f2937",
       color: "#f3f4f6",
-      showConfirmButton: false, // sem botão “OK”
-      timer: 1500,              // fecha em 1,5s
+      showConfirmButton: false,
+      timer: 1500,
       timerProgressBar: true,
       allowOutsideClick: false,
       customClass: {
         popup: "rounded-lg shadow-lg",
       },
       willClose: () => {
-        // Quando o modal SOME, apenas atualiza a lista.
         onSubmitSuccess();
-        // **Não chamamos mais onCancelDelete**, ou seja, não tentamos fechar o Drawer.
       },
     });
   };
 
-  // Função auxiliar para renderizar campo com label + input
   const renderField = (label: string, name: string, input: JSX.Element) => (
     <div className="flex flex-col">
       <label className="text-sm font-semibold text-gray-300 mb-1 uppercase tracking-wide">
@@ -197,6 +190,7 @@ export default function EditPlayersForm({
 
   return (
     <>
+      {/* Estilo global para deixar ícone do calendário branco */}
       <style>{`
         input[type="date"]::-webkit-calendar-picker-indicator {
           filter: invert(1);
@@ -210,6 +204,7 @@ export default function EditPlayersForm({
           </div>
         )}
 
+        {/* Linha 1 */}
         <div className="grid grid-cols-4 gap-4">
           {renderField(
             "Nome",
@@ -232,9 +227,10 @@ export default function EditPlayersForm({
               onChange={handleChange}
               className={baseInputClass}
             >
-              {Object.entries(countries).map(([code]) => (
+              <option value="">Selecione</option>
+              {Object.entries(countries).map(([code, fullName]) => (
                 <option key={code} value={code}>
-                  {code}
+                  {fullName}
                 </option>
               ))}
             </select>
@@ -269,6 +265,7 @@ export default function EditPlayersForm({
               onChange={handleChange}
               className={baseInputClass}
             >
+              <option value="">Selecione</option>
               {positionOrder.map((pos) => (
                 <option key={pos} value={pos}>
                   {pos}
@@ -278,6 +275,7 @@ export default function EditPlayersForm({
           )}
         </div>
 
+        {/* Linha 2 */}
         <div className="grid grid-cols-4 gap-4">
           {renderField(
             "Status",
@@ -349,6 +347,7 @@ export default function EditPlayersForm({
           )}
         </div>
 
+        {/* Linha 3 */}
         <div className="grid grid-cols-2 gap-4">
           {renderField(
             "Nascimento",
@@ -374,6 +373,7 @@ export default function EditPlayersForm({
           )}
         </div>
 
+        {/* Botões de ação */}
         <div className="flex justify-end gap-3">
           <button
             type="button"
@@ -400,7 +400,7 @@ export default function EditPlayersForm({
           <button
             type="submit"
             disabled={loading}
-            className="w-10 h-10 flex items-center justify-center rounded-full border-2 border-highlight-green text-highlight-green hover:bg-highlight-green hover:text-black transition-colors shadow-md"
+            className="w-10 h-10 flex items-center justify-center rounded-full border-2 border-highlight-green text-highlight-green hover:bg-highlight-green hover:text-black transition-colors shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
             aria-label="Salvar"
           >
             <Save className="w-5 h-5" />

@@ -4,51 +4,48 @@ import { JSX, useEffect, useState } from "react";
 import { supabase } from "@/app/lib/supabaseClient";
 import { countries } from "@/app/utils/countries";
 import { Save } from "lucide-react";
+import { Formik, Form, Field, ErrorMessage, FormikHelpers } from "formik";
+import * as Yup from "yup";
+
+interface Player {
+  id: number;
+  name: string;
+  age: number;
+  dob: string;
+  position: string;
+  nationality: string;
+  status: string;
+  weight: number;
+  height: number;
+  join_date: string;
+  value: number;
+  teams_id: number;
+}
 
 interface EditPlayersFormProps {
   teamId: number;
-  existingPlayer: any;
+  existingPlayer?: Player | null;
   onSubmitSuccess: () => void;
+}
+
+interface FormValues {
+  name: string;
+  age: string;
+  dob: string;
+  position: string;
+  nationality: string;
+  status: string;
+  weight: string;
+  height: string;
+  join_date: string;
+  value: string;
 }
 
 export default function EditPlayersForm({
   teamId,
-  existingPlayer,
+  existingPlayer = null,
   onSubmitSuccess,
 }: EditPlayersFormProps) {
-  const [form, setForm] = useState({
-    name: "",
-    age: "",
-    dob: "",
-    position: "",
-    nationality: "BR",
-    status: "ativo",
-    weight: "",
-    height: "",
-    join_date: "",
-    value: "",
-  });
-
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (existingPlayer) {
-      setForm({
-        name: existingPlayer.name || "",
-        age: existingPlayer.age || "",
-        dob: existingPlayer.dob || "",
-        position: existingPlayer.position || "",
-        nationality: existingPlayer.nationality || "BR",
-        status: existingPlayer.status || "ativo",
-        weight: existingPlayer.weight || "",
-        height: existingPlayer.height || "",
-        join_date: existingPlayer.join_date || "",
-        value: existingPlayer.value || "",
-      });
-    }
-  }, [existingPlayer]);
-
   const positionOrder = [
     "GOL",
     "LAT",
@@ -61,51 +58,93 @@ export default function EditPlayersForm({
     "ATA",
   ];
 
-  const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+  const initialValues: FormValues = {
+    name: existingPlayer?.name?.toString() ?? "",
+    age: existingPlayer?.age?.toString() ?? "",
+    dob: existingPlayer?.dob ?? "",
+    position: existingPlayer?.position ?? "",
+    nationality: existingPlayer?.nationality ?? "BR",
+    status: existingPlayer?.status ?? "ativo",
+    weight: existingPlayer?.weight?.toString() ?? "",
+    height: existingPlayer?.height?.toString() ?? "",
+    join_date: existingPlayer?.join_date ?? "",
+    value: existingPlayer?.value?.toString() ?? "",
+  };
+
+  const validationSchema = Yup.object().shape({
+    name: Yup.string().required("O nome é obrigatório."),
+    age: Yup.number()
+      .typeError("Idade deve ser um número.")
+      .required("A idade é obrigatória.")
+      .integer("Idade deve ser um número inteiro.")
+      .min(17, "A idade deve ser maior que 16."),
+    dob: Yup.string().required("Data de nascimento é obrigatória."),
+    position: Yup.string().required("A posição é obrigatória."),
+    nationality: Yup.string().required("A nacionalidade é obrigatória."),
+    status: Yup.string().required("O status é obrigatório."),
+    weight: Yup.number()
+      .typeError("Peso deve ser um número.")
+      .required("O peso é obrigatório.")
+      .positive("Peso deve ser positivo."),
+    height: Yup.number()
+      .typeError("Altura deve ser um número.")
+      .required("A altura é obrigatória.")
+      .positive("Altura deve ser positiva."),
+    join_date: Yup.string().required("Data de contratação é obrigatória."),
+    value: Yup.number()
+      .typeError("Valor deve ser um número.")
+      .required("O valor é obrigatório.")
+      .positive("Valor deve ser positivo."),
+  });
+
+  const handleSubmit = async (
+    values: FormValues,
+    formikHelpers: FormikHelpers<FormValues>
   ) => {
-    const { name, value } = e.target;
-    setForm((prev) => ({ ...prev, [name]: value }));
-  };
+    formikHelpers.setSubmitting(true);
+    formikHelpers.setStatus(null);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    setError(null);
+    const payload = {
+      name: values.name,
+      age: Number(values.age),
+      dob: values.dob,
+      position: values.position,
+      nationality: values.nationality,
+      status: values.status,
+      weight: Number(values.weight),
+      height: Number(values.height),
+      join_date: values.join_date,
+      value: Number(values.value),
+      teams_id: teamId,
+    };
 
-    const { error } = await supabase
-      .from("players")
-      .update({
-        ...form,
-        teams_id: teamId,
-        age: Number(form.age),
-        weight: Number(form.weight),
-        height: Number(form.height),
-        value: Number(form.value),
-      })
-      .eq("id", existingPlayer.id);
+    try {
+      if (existingPlayer && existingPlayer.id) {
+        const { error: updateError } = await supabase
+          .from("players")
+          .update(payload)
+          .eq("id", existingPlayer.id);
 
-    if (error) {
-      setError(error.message);
-    } else {
+        if (updateError) {
+          throw updateError;
+        }
+      } else {
+        const { error: insertError } = await supabase
+          .from("players")
+          .insert(payload);
+
+        if (insertError) {
+          throw insertError;
+        }
+      }
+
       onSubmitSuccess();
+    } catch (err: any) {
+      formikHelpers.setStatus(err.message || "Ocorreu um erro inesperado.");
+    } finally {
+      formikHelpers.setSubmitting(false);
     }
-
-    setLoading(false);
   };
-
-  const renderField = (
-    label: string,
-    name: string,
-    input: JSX.Element
-  ) => (
-    <div className="flex flex-col">
-      <label className="text-sm font-semibold text-gray-300 mb-1 uppercase tracking-wide">
-        {label}
-      </label>
-      {input}
-    </div>
-  );
 
   const baseInputClass =
     "w-full h-[48px] px-3 rounded-md bg-gray-800 border border-white/10 text-white placeholder-gray-400 focus:ring-2 focus:ring-highlight-green focus:outline-none transition-all duration-300";
@@ -119,165 +158,225 @@ export default function EditPlayersForm({
         }
       `}</style>
 
-      <form onSubmit={handleSubmit} className="space-y-6 text-white">
-        {error && (
-          <div className="bg-red-600 text-white text-sm px-4 py-2 rounded-md">
-            {error}
-          </div>
+      <Formik
+        initialValues={initialValues}
+        enableReinitialize={true}
+        validationSchema={validationSchema}
+        onSubmit={handleSubmit}
+      >
+        {({ isSubmitting, status }) => (
+          <Form className="space-y-6 text-white">
+            {status && (
+              <div className="bg-red-600 text-white text-sm px-4 py-2 rounded-md">
+                {status}
+              </div>
+            )}
+
+            {/* Linha 1 */}
+            <div className="grid grid-cols-4 gap-4">
+              {/* Nome */}
+              <div className="flex flex-col">
+                <label className="text-sm font-semibold text-gray-300 mb-1 uppercase tracking-wide">
+                  Nome
+                </label>
+                <Field
+                  type="text"
+                  name="name"
+                  placeholder="Ex: João Silva"
+                  className={baseInputClass}
+                />
+                <ErrorMessage
+                  name="name"
+                  component="div"
+                  className="text-red-500 text-sm mt-1"
+                />
+              </div>
+
+              {/* Nacionalidade */}
+              <div className="flex flex-col">
+                <label className="text-sm font-semibold text-gray-300 mb-1 uppercase tracking-wide">
+                  Nacionalidade
+                </label>
+                <Field
+                  as="select"
+                  name="nationality"
+                  className={baseInputClass}
+                >
+                  <option value="">Selecione</option>
+                  {Object.entries(countries).map(([code, name]) => (
+                    <option key={code} value={code}>
+                      {name}
+                    </option>
+                  ))}
+                </Field>
+                <ErrorMessage
+                  name="nationality"
+                  component="div"
+                  className="text-red-500 text-sm mt-1"
+                />
+              </div>
+
+              {/* Valor (R$) */}
+              <div className="flex flex-col">
+                <label className="text-sm font-semibold text-gray-300 mb-1 uppercase tracking-wide">
+                  Valor (R$)
+                </label>
+                <Field
+                  type="number"
+                  name="value"
+                  placeholder="0.00"
+                  className={baseInputClass}
+                />
+                <ErrorMessage
+                  name="value"
+                  component="div"
+                  className="text-red-500 text-sm mt-1"
+                />
+              </div>
+
+              {/* Posição */}
+              <div className="flex flex-col">
+                <label className="text-sm font-semibold text-gray-300 mb-1 uppercase tracking-wide">
+                  Posição
+                </label>
+                <Field as="select" name="position" className={baseInputClass}>
+                  <option value="">Selecione</option>
+                  {positionOrder.map((pos) => (
+                    <option key={pos} value={pos}>
+                      {pos}
+                    </option>
+                  ))}
+                </Field>
+                <ErrorMessage
+                  name="position"
+                  component="div"
+                  className="text-red-500 text-sm mt-1"
+                />
+              </div>
+            </div>
+
+            {/* Linha 2 */}
+            <div className="grid grid-cols-4 gap-4">
+              {/* Status */}
+              <div className="flex flex-col">
+                <label className="text-sm font-semibold text-gray-300 mb-1 uppercase tracking-wide">
+                  Status
+                </label>
+                <Field as="select" name="status" className={baseInputClass}>
+                  <option value="">Selecione</option>
+                  <option value="ativo">Ativo</option>
+                  <option value="lesionado">Lesionado</option>
+                  <option value="nulo">Nulo</option>
+                </Field>
+                <ErrorMessage
+                  name="status"
+                  component="div"
+                  className="text-red-500 text-sm mt-1"
+                />
+              </div>
+
+              {/* Peso (kg) */}
+              <div className="flex flex-col">
+                <label className="text-sm font-semibold text-gray-300 mb-1 uppercase tracking-wide">
+                  Peso (kg)
+                </label>
+                <Field
+                  type="number"
+                  name="weight"
+                  placeholder="Ex: 70"
+                  className={baseInputClass}
+                />
+                <ErrorMessage
+                  name="weight"
+                  component="div"
+                  className="text-red-500 text-sm mt-1"
+                />
+              </div>
+
+              {/* Altura (cm) */}
+              <div className="flex flex-col">
+                <label className="text-sm font-semibold text-gray-300 mb-1 uppercase tracking-wide">
+                  Altura (cm)
+                </label>
+                <Field
+                  type="number"
+                  name="height"
+                  placeholder="Ex: 180"
+                  className={baseInputClass}
+                />
+                <ErrorMessage
+                  name="height"
+                  component="div"
+                  className="text-red-500 text-sm mt-1"
+                />
+              </div>
+
+              {/* Idade */}
+              <div className="flex flex-col">
+                <label className="text-sm font-semibold text-gray-300 mb-1 uppercase tracking-wide">
+                  Idade
+                </label>
+                <Field
+                  type="number"
+                  name="age"
+                  placeholder="Ex: 22"
+                  className={baseInputClass}
+                />
+                <ErrorMessage
+                  name="age"
+                  component="div"
+                  className="text-red-500 text-sm mt-1"
+                />
+              </div>
+            </div>
+
+            {/* Linha 3 */}
+            <div className="grid grid-cols-2 gap-4">
+              {/* Data de Nascimento */}
+              <div className="flex flex-col">
+                <label className="text-sm font-semibold text-gray-300 mb-1 uppercase tracking-wide">
+                  Nascimento
+                </label>
+                <Field type="date" name="dob" className={baseInputClass} />
+                <ErrorMessage
+                  name="dob"
+                  component="div"
+                  className="text-red-500 text-sm mt-1"
+                />
+              </div>
+
+              {/* Data de Contratação */}
+              <div className="flex flex-col">
+                <label className="text-sm font-semibold text-gray-300 mb-1 uppercase tracking-wide">
+                  Data de Contratação
+                </label>
+                <Field
+                  type="date"
+                  name="join_date"
+                  className={baseInputClass}
+                />
+                <ErrorMessage
+                  name="join_date"
+                  component="div"
+                  className="text-red-500 text-sm mt-1"
+                />
+              </div>
+            </div>
+
+            {/* Botão de salvar */}
+            <div className="flex justify-end">
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="w-10 h-10 flex items-center justify-center rounded-full border-2 border-highlight-green text-highlight-green hover:bg-highlight-green hover:text-black transition-colors shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+                aria-label="Salvar"
+              >
+                <Save className="w-5 h-5" />
+              </button>
+            </div>
+          </Form>
         )}
-
-        {/* Linha 1 */}
-        <div className="grid grid-cols-4 gap-4">
-          {renderField(
-            "Nome",
-            "name",
-            <input
-              type="text"
-              name="name"
-              value={form.name}
-              onChange={handleChange}
-              placeholder="Ex: João Silva"
-              className={baseInputClass}
-            />
-          )}
-          {renderField(
-            "Nacionalidade",
-            "nationality",
-            <select
-              name="nationality"
-              value={form.nationality}
-              onChange={handleChange}
-              className={baseInputClass}
-            >
-              {Object.entries(countries).map(([code, name]) => (
-                <option key={code} value={code}>
-                  {code}
-                </option>
-              ))}
-            </select>
-          )}
-          {renderField(
-            "Valor (R$)",
-            "value",
-            <input
-              type="number"
-              name="value"
-              value={form.value}
-              onChange={handleChange}
-              placeholder="0.00"
-              className={baseInputClass}
-            />
-          )}
-          {renderField(
-            "Posição",
-            "position",
-            <select
-              name="position"
-              value={form.position}
-              onChange={handleChange}
-              className={baseInputClass}
-            >
-              {positionOrder.map((pos) => (
-                <option key={pos} value={pos}>
-                  {pos}
-                </option>
-              ))}
-            </select>
-          )}
-        </div>
-
-        {/* Linha 2 */}
-        <div className="grid grid-cols-4 gap-4">
-          {renderField(
-            "Status",
-            "status",
-            <select
-              name="status"
-              value={form.status}
-              onChange={handleChange}
-              className={baseInputClass}
-            >
-              <option value="ativo">Ativo</option>
-              <option value="lesionado">Lesionado</option>
-              <option value="nulo">Nulo</option>
-            </select>
-          )}
-          {renderField(
-            "Peso (kg)",
-            "weight",
-            <input
-              type="number"
-              name="weight"
-              value={form.weight}
-              onChange={handleChange}
-              placeholder="Ex: 70"
-              className={baseInputClass}
-            />
-          )}
-          {renderField(
-            "Altura (cm)",
-            "height",
-            <input
-              type="number"
-              name="height"
-              value={form.height}
-              onChange={handleChange}
-              placeholder="Ex: 180"
-              className={baseInputClass}
-            />
-          )}
-          {renderField(
-            "Idade",
-            "age",
-            <input
-              type="number"
-              name="age"
-              value={form.age}
-              onChange={handleChange}
-              placeholder="Ex: 22"
-              className={baseInputClass}
-            />
-          )}
-        </div>
-
-        {/* Linha 3 */}
-        <div className="grid grid-cols-2 gap-4">
-          {renderField(
-            "Nascimento",
-            "dob",
-            <input
-              type="date"
-              name="dob"
-              value={form.dob}
-              onChange={handleChange}
-              className={baseInputClass}
-            />
-          )}
-          {renderField(
-            "Data de Contratação",
-            "join_date",
-            <input
-              type="date"
-              name="join_date"
-              value={form.join_date}
-              onChange={handleChange}
-              className={baseInputClass}
-            />
-          )}
-        </div>
-
-        {/* Botão */}
-        <div className="flex justify-end">
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-10 h-10 flex items-center justify-center rounded-full border-2 border-highlight-green text-highlight-green hover:bg-highlight-green hover:text-black transition-colors shadow-md"
-            aria-label="Salvar"
-          >
-            <Save className="w-5 h-5" />
-          </button>
-        </div>
-      </form>
+      </Formik>
     </>
   );
 }
