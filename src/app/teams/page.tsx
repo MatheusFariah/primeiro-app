@@ -1,17 +1,12 @@
+// src/app/teams/TeamsPage.tsx
 "use client";
 
 import { useState, useEffect } from "react";
 import { AiOutlinePlus, AiOutlineClose } from "react-icons/ai";
 import { FiBarChart2, FiEdit } from "react-icons/fi";
-import { MdLocalHospital, MdHealing, MdMedicalServices } from "react-icons/md";
-
 import {
   MdRemove,
-  MdClose,
-  MdCheckCircle,
   MdCheck,
-  MdRemoveCircle,
-  MdAddCircle,
   MdAdd,
 } from "react-icons/md";
 import { ArrowUpDown, ArrowRight, ArrowLeft } from "lucide-react";
@@ -26,8 +21,8 @@ import { supabase } from "@/app/lib/supabaseClient";
 import Table from "../components/table";
 import UpsertTeamsForm from "./components/upsert-teams-form";
 import UpsertPlayersForm from "../players/components/upsert-players-form";
+import UpsertPlayerStatsForm from "../players/components/upsert-players-stats";
 import StatsGraphs, { positionProfiles } from "./components/stats-graphs";
-import { countries } from "../utils/countries";
 import EditPlayersForm from "./components/edit-players-form";
 
 interface Team {
@@ -54,19 +49,45 @@ interface Player {
   value: number;
 }
 
+// Repetimos aqui a interface de PlayerStats para podermos tipar o existingStats
+interface PlayerStats {
+  id?: number;
+  players_id: number;
+  goals: number;
+  assists: number;
+  matches_played: number;
+  yellow_cards: number;
+  red_cards: number;
+  correct_passes: number;
+  incorrect_passes: number;
+  successful_shots: number;
+  unsuccessful_shots: number;
+  interceptions: number;
+  dribbles: number;
+  goals_conceded?: number;
+  saves?: number;
+  clean_sheets?: number;
+  penalties_saved?: number;
+  penalties_faced?: number;
+  high_claims?: number;
+}
+
 export default function TeamsPage() {
   const [teams, setTeams] = useState<Team[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedTeam, setSelectedTeam] = useState<Team | null>(null);
   const [openDrawer, setOpenDrawer] = useState(false);
-  const [players, setPlayers] = useState<Player[]>([]);
+  // ACEITAMOS AGORA 5 VIEWS: list | stats | add | edit | upsertStats
   const [drawerView, setDrawerView] = useState<
-    "list" | "stats" | "add" | "edit"
+    "list" | "stats" | "add" | "edit" | "upsertStats"
   >("list");
 
+  const [players, setPlayers] = useState<Player[]>([]);
   const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
-  const [playerStats, setPlayerStats] = useState<any | null>(null);
+  const [playerStats, setPlayerStats] = useState<PlayerStats | null>(null);
+  const [existingStats, setExistingStats] = useState<PlayerStats | null>(null);
+
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [statusType, setStatusType] = useState<"success" | "error" | null>(
     null
@@ -75,22 +96,14 @@ export default function TeamsPage() {
   const [sortByPlayers, setSortByPlayers] = useState(false);
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
 
-  const [sortByPosition, setSortByPosition] = useState(false);
-  const [sortDirectionPlayers, setSortDirectionPlayers] = useState<
-    "asc" | "desc"
-  >("asc");
-
-  const [playersValueMap, setPlayersValueMap] = useState<
-    Record<string, number>
-  >({});
+  const [playersValueMap, setPlayersValueMap] = useState<Record<string, number>>(
+    {}
+  );
 
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 7;
 
-  interface StatusIconProps {
-    status: string;
-  }
-
+  // Ícone de status que você já tinha
   function StatusIcon({ status }: { status: string }) {
     const baseClass =
       "w-6 h-6 flex items-center justify-center rounded-full text-white";
@@ -98,21 +111,13 @@ export default function TeamsPage() {
     switch (status.toLowerCase()) {
       case "ativo":
         return (
-          <div
-            className={`${baseClass} bg-green-600 text-white`}
-            title="Ativo"
-            aria-label="Ativo"
-          >
+          <div className={`${baseClass} bg-green-600`} title="Ativo" aria-label="Ativo">
             <MdCheck className="w-4 h-4" />
           </div>
         );
       case "lesionado":
         return (
-          <div
-            className={`${baseClass} bg-red-600`}
-            title="Lesionado"
-            aria-label="Lesionado"
-          >
+          <div className={`${baseClass} bg-red-600`} title="Lesionado" aria-label="Lesionado">
             <MdAdd size={20} />
           </div>
         );
@@ -120,7 +125,7 @@ export default function TeamsPage() {
       default:
         return (
           <div
-            className={`${baseClass} bg-gray-600 text-white`}
+            className={`${baseClass} bg-gray-600`}
             title="Nulo"
             aria-label="Nulo"
           >
@@ -129,18 +134,6 @@ export default function TeamsPage() {
         );
     }
   }
-
-  const positionOrder = [
-    "GOL",
-    "LAT",
-    "ZAG",
-    "VOL",
-    "MEI",
-    "PE",
-    "PD",
-    "SA",
-    "ATA",
-  ];
 
   const fetchTeams = async () => {
     const { data: teamsData, error: teamsError } = await supabase
@@ -155,7 +148,6 @@ export default function TeamsPage() {
       console.error("Erro ao buscar times:", teamsError);
       return;
     }
-
     if (playersError) {
       console.error("Erro ao buscar jogadores:", playersError);
       return;
@@ -164,16 +156,10 @@ export default function TeamsPage() {
     const playersCountMap: Record<string, number> = {};
     const playersValueMapTemp: Record<string, number> = {};
 
-    (playersData || []).forEach((player) => {
-      const teamId = String(player.teams_id);
-
-      // Count de jogadores
-      if (!playersCountMap[teamId]) playersCountMap[teamId] = 0;
-      playersCountMap[teamId] += 1;
-
-      // Soma dos valores dos jogadores
-      if (!playersValueMapTemp[teamId]) playersValueMapTemp[teamId] = 0;
-      playersValueMapTemp[teamId] += player.value;
+    (playersData || []).forEach((pl: any) => {
+      const teamId = String(pl.teams_id);
+      playersCountMap[teamId] = (playersCountMap[teamId] || 0) + 1;
+      playersValueMapTemp[teamId] = (playersValueMapTemp[teamId] || 0) + pl.value;
     });
 
     const mapped = (teamsData || []).map((t: any) => ({
@@ -182,12 +168,13 @@ export default function TeamsPage() {
       coach: t.coach,
       value: t.value,
       founded: t.founded,
-      players: playersCountMap[String(t.id)] || 0, // <- count certo
+      players: playersCountMap[String(t.id)] || 0,
     }));
 
     setTeams(mapped);
     setPlayersValueMap(playersValueMapTemp);
   };
+
   useEffect(() => {
     fetchTeams();
   }, []);
@@ -202,6 +189,7 @@ export default function TeamsPage() {
     setPlayers(data as Player[]);
   };
 
+  // Ajustamos fetchPlayerStatsById para também colocar existingStats
   const fetchPlayerStatsById = async (playerId: number) => {
     const { data, error } = await supabase
       .from("player_statics")
@@ -209,17 +197,24 @@ export default function TeamsPage() {
       .eq("players_id", playerId)
       .single();
 
-    if (error) {
+    if (error || !data) {
       setPlayerStats(null);
+      setExistingStats(null);
       return null;
     } else {
-      setPlayerStats(data);
-      return data;
+      setPlayerStats(data as PlayerStats);
+      setExistingStats(data as PlayerStats);
+      return data as PlayerStats;
     }
   };
+
   useEffect(() => {
-    if (!selectedPlayer) setPlayerStats(null);
-  }, [selectedPlayer?.id]); // só monitora id, que é string ou number e não muda de tamanho
+    // sempre que o selectedPlayer mudar, limpamos as estatísticas carregadas
+    if (!selectedPlayer) {
+      setPlayerStats(null);
+      setExistingStats(null);
+    }
+  }, [selectedPlayer]);
 
   const handleSaveTeam = async (data: {
     name: string;
@@ -261,6 +256,7 @@ export default function TeamsPage() {
     setSelectedTeam(team);
     await fetchPlayersByTeamId(team.id);
     setOpenDrawer(true);
+    setDrawerView("list");
   };
 
   const formatBRL = (n: number) =>
@@ -268,6 +264,11 @@ export default function TeamsPage() {
       style: "currency",
       currency: "BRL",
     }).format(n);
+
+  const toggleSortByPlayers = () => {
+    setSortByPlayers(!sortByPlayers);
+    setSortDirection((prev) => (prev === "asc" ? "desc" : "asc"));
+  };
 
   const filtered = teams
     .filter((t) => t.name.toLowerCase().includes(searchTerm.toLowerCase()))
@@ -281,21 +282,10 @@ export default function TeamsPage() {
     });
 
   const totalPages = Math.ceil(filtered.length / itemsPerPage);
-
   const paginatedTeams = filtered.slice(
     (currentPage - 1) * itemsPerPage,
     currentPage * itemsPerPage
   );
-
-  const toggleSortByPlayers = () => {
-    setSortByPlayers(!sortByPlayers);
-    setSortDirection((prev) => (prev === "asc" ? "desc" : "asc"));
-  };
-
-  const toggleSortByPosition = () => {
-    setSortByPosition(!sortByPosition);
-    setSortDirectionPlayers((prev) => (prev === "asc" ? "desc" : "asc"));
-  };
 
   const goToPage = (page: number) => {
     if (page >= 1 && page <= totalPages) setCurrentPage(page);
@@ -305,9 +295,9 @@ export default function TeamsPage() {
     <div className="max-w-6xl mx-auto px-4 py-8 overflow-hidden">
       {statusMessage && (
         <div
-          className={`mb-6 text-center  px-6 py-3 rounded-2xl shadow-lg font-bold text-lg animate-slide-up transition-all duration-500 ${
+          className={`mb-6 text-center px-6 py-3 rounded-2xl shadow-lg font-bold text-lg animate-slide-up transition-all duration-500 ${
             statusType === "success"
-              ? "bg-highlight-green text-white "
+              ? "bg-highlight-green text-white"
               : "bg-red-600 text-white"
           }`}
         >
@@ -374,6 +364,7 @@ export default function TeamsPage() {
           <span className="font-semibold">Adicionar Time</span>
         </button>
       </div>
+
       <Table>
         <thead className="bg-gray-900 uppercase text-sm text-gray-400 shadow-md shadow-black/10 border-b border-gray-700">
           <tr>
@@ -445,9 +436,9 @@ export default function TeamsPage() {
         </tbody>
       </Table>
 
+      {/* Paginação */}
       {totalPages > 1 && (
         <div className="flex justify-center items-center gap-2 mt-10 flex-wrap">
-          {/* Primeira página */}
           <button
             onClick={() => goToPage(1)}
             disabled={currentPage === 1}
@@ -458,25 +449,19 @@ export default function TeamsPage() {
           >
             <ChevronsLeft size={18} />
           </button>
-
-          {/* Anterior */}
           <button
             onClick={() => goToPage(currentPage - 1)}
             disabled={currentPage === 1}
             className={`w-8 h-8 flex items-center justify-center text-highlight-green hover:text-black hover:bg-highlight-green transition-colors ${
-              currentPage === 1 ? "text-gray-500 cursor-not-allowed " : ""
+              currentPage === 1 ? "text-gray-500 cursor-not-allowed" : ""
             }`}
             aria-label="Página anterior"
           >
             <ChevronLeft size={18} />
           </button>
-
-          {/* Página atual */}
           <div className="w-12 h-12 flex items-center justify-center rounded-full border-2 border-highlight-green text-highlight-green">
             {currentPage}
           </div>
-
-          {/* Próxima */}
           <button
             onClick={() => goToPage(currentPage + 1)}
             disabled={currentPage === totalPages}
@@ -489,8 +474,6 @@ export default function TeamsPage() {
           >
             <ChevronRight size={18} />
           </button>
-
-          {/* Última */}
           <button
             onClick={() => goToPage(totalPages)}
             disabled={currentPage === totalPages}
@@ -508,57 +491,35 @@ export default function TeamsPage() {
 
       {/* Modal de adicionar/editar time */}
       {isModalOpen && (
-        <div className="fixed inset-0 flex items-center justify-center z-50">
-          <div
-            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
-            onClick={() => setIsModalOpen(false)}
-          />
-          <div className="relative z-10 bg-gradient-to-br from-gray-800/80 to-gray-900/80 p-10 rounded-3xl shadow-xl w-[90%] sm:w-[600px] border border-white/10 animate-slide-up">
-            <div className="relative mb-6">
-              <h3 className="text-3xl font-extrabold text-center text-highlight-green">
-                {selectedTeam ? "Editar Time" : "Adicionar Time"}
-              </h3>
-              <button
-                onClick={() => setIsModalOpen(false)}
-                className="absolute right-0 top-0 w-12 h-12 flex items-center justify-center rounded-full border-2 border-highlight-green text-highlight-green hover:bg-highlight-green hover:text-white transition"
-                aria-label="Fechar Modal"
-              >
-                <AiOutlineClose size={24} />
-              </button>
-            </div>
-            <UpsertTeamsForm
-              initialData={selectedTeam || undefined}
-              onSubmit={handleSaveTeam}
+        <>
+          <div className="fixed inset-0 flex items-center justify-center z-50">
+            <div
+              className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+              onClick={() => setIsModalOpen(false)}
             />
-          </div>
-        </div>
-      )}
-      {isModalOpen && (
-        <div className="fixed inset-0 flex items-center justify-center z-50">
-          <div
-            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
-            onClick={() => setIsModalOpen(false)}
-          />
-          <div className="relative z-10 bg-gradient-to-br from-gray-800/80 to-gray-900/80 p-10 rounded-3xl shadow-xl w-[90%] sm:w-[600px] border border-white/10 animate-slide-up">
-            <div className="relative mb-6">
-              <h3 className="text-3xl font-extrabold text-center text-highlight-green">
-                {selectedTeam ? "Editar Time" : "Adicionar Time"}
-              </h3>
-              <button
-                onClick={() => setIsModalOpen(false)}
-                className="absolute right-0 top-0 w-12 h-12 flex items-center justify-center rounded-full border-2 border-highlight-green text-highlight-green hover:bg-highlight-green hover:text-white transition"
-                aria-label="Fechar Modal"
-              >
-                <AiOutlineClose size={24} />
-              </button>
+            <div className="relative z-10 bg-gradient-to-br from-gray-800/80 to-gray-900/80 p-10 rounded-3xl shadow-xl w-[90%] sm:w-[600px] border border-white/10 animate-slide-up">
+              <div className="relative mb-6">
+                <h3 className="text-3xl font-extrabold text-center text-highlight-green">
+                  {selectedTeam ? "Editar Time" : "Adicionar Time"}
+                </h3>
+                <button
+                  onClick={() => setIsModalOpen(false)}
+                  className="absolute right-0 top-0 w-12 h-12 flex items-center justify-center rounded-full border-2 border-highlight-green text-highlight-green hover:bg-highlight-green hover:text-white transition"
+                  aria-label="Fechar Modal"
+                >
+                  <AiOutlineClose size={24} />
+                </button>
+              </div>
+              <UpsertTeamsForm
+                initialData={selectedTeam || undefined}
+                onSubmit={handleSaveTeam}
+              />
             </div>
-            <UpsertTeamsForm
-              initialData={selectedTeam || undefined}
-              onSubmit={handleSaveTeam}
-            />
           </div>
-        </div>
+        </>
       )}
+
+      {/* DRAWER (listas, forms, estatísticas, etc) */}
       <Drawer
         anchor="bottom"
         open={openDrawer}
@@ -566,6 +527,8 @@ export default function TeamsPage() {
           setOpenDrawer(false);
           setDrawerView("list");
           setSelectedPlayer(null);
+          setPlayerStats(null);
+          setExistingStats(null);
         }}
         PaperProps={{
           sx: {
@@ -581,20 +544,24 @@ export default function TeamsPage() {
       >
         <div className="w-full h-full overflow-y-auto scrollbar-hidden">
           <div
-            className={`flex w-[400%] h-full transition-transform duration-500 ease-in-out`}
+            className={`flex w-[500%] h-full transition-transform duration-500 ease-in-out`}
             style={{
               transform:
                 drawerView === "add"
                   ? "translateX(0%)"
                   : drawerView === "list"
-                  ? "translateX(-25%)"
+                  ? "translateX(-20%)"
                   : drawerView === "stats"
-                  ? "translateX(-50%)"
-                  : "translateX(-75%)", // Edit
+                  ? "translateX(-40%)"
+                  : drawerView === "upsertStats"
+                  ? "translateX(-60%)"
+                  : "translateX(-80%)", // "edit"
             }}
           >
-            {/* CADASTRAR */}
-            <div className="w-1/4 h-full px-6 py-6 overflow-y-auto scrollbar-hidden">
+            {/* ============================
+                   1) CADASTRAR JOGADOR
+               ============================ */}
+            <div className="w-1/5 h-full px-6 py-6 overflow-y-auto scrollbar-hidden">
               <div className="flex justify-between items-center mb-4">
                 <h3 className="text-2xl font-bold text-highlight-green">
                   Cadastrar Jogador
@@ -616,8 +583,10 @@ export default function TeamsPage() {
               />
             </div>
 
-            {/* LISTA */}
-            <div className="w-1/4 h-full px-6 py-6 overflow-y-auto scrollbar-hidden bg-gray-900/70 backdrop-blur-md rounded-tr-2xl">
+            {/* ============================
+                   2) LISTAR JOGADORES
+               ============================ */}
+            <div className="w-1/5 h-full px-6 py-6 overflow-y-auto scrollbar-hidden bg-gray-900/70 backdrop-blur-md rounded-tr-2xl">
               <div className="flex justify-between items-center mb-6">
                 <h3 className="text-2xl font-bold text-highlight-green">
                   Jogadores de {selectedTeam?.name}
@@ -659,6 +628,7 @@ export default function TeamsPage() {
                           key={p.id}
                           className="hover:bg-gray-900 cursor-pointer"
                           onClick={async () => {
+                            // clicando na row, abrimos a VIEW dos gráficos
                             setSelectedPlayer(p);
                             await fetchPlayerStatsById(p.id);
                             setDrawerView("stats");
@@ -696,6 +666,7 @@ export default function TeamsPage() {
                           </td>
 
                           <td className="px-6 py-3 flex gap-2 justify-center">
+                            {/* EDITAR JOGADOR */}
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -703,16 +674,23 @@ export default function TeamsPage() {
                                 setDrawerView("edit");
                               }}
                               className="p-2 rounded-md bg-highlight-green/20 text-highlight-green hover:bg-highlight-green hover:text-white transition"
+                              title="Editar Jogador"
                             >
                               <FiEdit size={18} />
                             </button>
+
+                            {/* UPSET ESTATÍSTICAS */}
                             <button
-                              onClick={(e) => {
+                              onClick={async (e) => {
                                 e.stopPropagation();
                                 setSelectedPlayer(p);
-                                setDrawerView("stats");
+                                // Carrega existingStats (ou null)
+                                await fetchPlayerStatsById(p.id);
+                                // Abre drawer no modo criar/editar estatísticas
+                                setDrawerView("upsertStats");
                               }}
                               className="p-2 border-2 border-highlight-green rounded-md text-highlight-green hover:bg-highlight-green hover:text-white transition"
+                              title="Cadastrar / Editar Estatísticas"
                             >
                               <FiBarChart2 size={16} />
                             </button>
@@ -725,8 +703,10 @@ export default function TeamsPage() {
               </div>
             </div>
 
-            {/* ESTATÍSTICAS */}
-            <div className="w-1/4 h-full px-6 py-6 space-y-6">
+            {/* ============================
+                   3) VISUALIZAR GRÁFICOS
+               ============================ */}
+            <div className="w-1/5 h-full px-6 py-6 space-y-6">
               <div className="flex justify-between items-center mb-4">
                 <h3 className="text-2xl font-bold text-highlight-green">
                   Estatísticas de {selectedPlayer?.name ?? "Jogador"}
@@ -734,6 +714,7 @@ export default function TeamsPage() {
                 <button
                   onClick={() => setDrawerView("list")}
                   className="w-10 h-10 flex items-center justify-center rounded-full border-2 border-highlight-green text-highlight-green hover:bg-highlight-green hover:text-black transition"
+                  title="Voltar"
                 >
                   <ArrowLeft className="w-5 h-5" />
                 </button>
@@ -755,8 +736,41 @@ export default function TeamsPage() {
               )}
             </div>
 
-            {/* EDITAR */}
-            <div className="w-1/4 h-full px-6 py-6 overflow-y-auto scrollbar-hidden">
+            {/* ============================
+                   4) UPSERT ESTATÍSTICAS
+               ============================ */}
+            <div className="w-1/5 h-full px-6 py-6 overflow-y-auto scrollbar-hidden">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-2xl font-bold text-highlight-green">
+                  {existingStats ? "Editar Estatísticas" : "Cadastrar Estatísticas"}
+                </h3>
+                <button
+                  onClick={() => setDrawerView("list")}
+                  className="w-10 h-10 flex items-center justify-center rounded-full border-2 border-highlight-green text-highlight-green hover:bg-highlight-green hover:text-black transition"
+                  title="Voltar"
+                >
+                  <ArrowLeft className="w-5 h-5" />
+                </button>
+              </div>
+
+              {selectedPlayer && (
+                <UpsertPlayerStatsForm
+                  playerId={selectedPlayer.id}
+                  existingStats={existingStats}
+                  position={selectedPlayer.position}
+                  onSubmitSuccess={() => {
+                    // após criar/editar a estatística:
+                    fetchPlayerStatsById(selectedPlayer.id);
+                    setDrawerView("stats");
+                  }}
+                />
+              )}
+            </div>
+
+            {/* ============================
+                   5) EDITAR JOGADOR
+               ============================ */}
+            <div className="w-1/5 h-full px-6 py-6 overflow-y-auto scrollbar-hidden">
               <div className="flex justify-between items-center mb-4">
                 <h3 className="text-2xl font-bold text-highlight-green">
                   Editar Jogador
@@ -764,6 +778,7 @@ export default function TeamsPage() {
                 <button
                   onClick={() => setDrawerView("list")}
                   className="w-10 h-10 flex items-center justify-center rounded-full border-2 border-highlight-green text-highlight-green hover:bg-highlight-green hover:text-black transition"
+                  title="Voltar"
                 >
                   <ArrowLeft className="w-5 h-5" />
                 </button>
@@ -773,13 +788,8 @@ export default function TeamsPage() {
                   teamId={selectedTeam!.id}
                   existingPlayer={selectedPlayer}
                   onSubmitSuccess={() => {
-                    // 1) Recarrega a lista de jogadores
                     fetchPlayersByTeamId(selectedTeam!.id);
-
-                    // 2) Limpa o jogador excluído
                     setSelectedPlayer(null);
-
-                    // 3) Volta para a aba “list” do Drawer (até aqui, o Drawer continua aberto)
                     setDrawerView("list");
                   }}
                 />

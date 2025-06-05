@@ -87,7 +87,7 @@ export const positionProfiles: Record<
         invert: true,
       },
       { key: "penalties_saved", label: "Pênaltis salvos", max: 5, weight: 1.5 },
-      { key: "high_claims", label: "Cruzamentos", max: 50, weight: 1 },
+      { key: "high_claims", label: "Saídas", max: 50, weight: 1 },
     ],
     pieStats: [
       { key: "saves", label: "Defesas", type: "success" },

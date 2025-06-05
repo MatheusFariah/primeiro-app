@@ -203,9 +203,9 @@ export default function EditPlayersForm({
                   className={baseInputClass}
                 >
                   <option value="">Selecione</option>
-                  {Object.entries(countries).map(([code, name]) => (
-                    <option key={code} value={code}>
-                      {name}
+                  {Object.entries(countries).map(([countryName, isoCode]) => (
+                    <option key={isoCode} value={isoCode}>
+                      {countryName}
                     </option>
                   ))}
                 </Field>
