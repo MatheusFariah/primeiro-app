@@ -32,7 +32,9 @@ interface Team {
   players: number;
   value: number;
   founded: number;
+  league_name?: string; // <-- Adicione este campo
 }
+
 
 interface Player {
   id: number;
@@ -140,6 +142,10 @@ export default function TeamsPage() {
       .from("teams")
       .select("*");
 
+    const { data: leaguesData, error: leaguesError } = await supabase
+      .from("leagues")
+      .select("id, name");
+
     const { data: playersData, error: playersError } = await supabase
       .from("players")
       .select("teams_id, value");
@@ -148,10 +154,19 @@ export default function TeamsPage() {
       console.error("Erro ao buscar times:", teamsError);
       return;
     }
+    if (leaguesError) {
+      console.error("Erro ao buscar ligas:", leaguesError);
+      return;
+    }
     if (playersError) {
       console.error("Erro ao buscar jogadores:", playersError);
       return;
     }
+
+    // Mapeia id da liga para nome
+    const leagueMap = Object.fromEntries(
+      (leaguesData || []).map((l: any) => [l.id, l.name])
+    );
 
     const playersCountMap: Record<string, number> = {};
     const playersValueMapTemp: Record<string, number> = {};
@@ -162,6 +177,7 @@ export default function TeamsPage() {
       playersValueMapTemp[teamId] = (playersValueMapTemp[teamId] || 0) + pl.value;
     });
 
+    // Mapeia os times incluindo o nome da liga
     const mapped = (teamsData || []).map((t: any) => ({
       id: t.id,
       name: t.name,
@@ -169,6 +185,7 @@ export default function TeamsPage() {
       value: t.value,
       founded: t.founded,
       players: playersCountMap[String(t.id)] || 0,
+      league_name: t.leagues_id ? leagueMap[t.leagues_id] || "" : "", // <<<<<<
     }));
 
     setTeams(mapped);
@@ -295,11 +312,10 @@ export default function TeamsPage() {
     <div className="max-w-6xl mx-auto px-4 py-8 overflow-hidden">
       {statusMessage && (
         <div
-          className={`mb-6 text-center px-6 py-3 rounded-2xl shadow-lg font-bold text-lg animate-slide-up transition-all duration-500 ${
-            statusType === "success"
-              ? "bg-highlight-green text-white"
-              : "bg-red-600 text-white"
-          }`}
+          className={`mb-6 text-center px-6 py-3 rounded-2xl shadow-lg font-bold text-lg animate-slide-up transition-all duration-500 ${statusType === "success"
+            ? "bg-highlight-green text-white"
+            : "bg-red-600 text-white"
+            }`}
         >
           {statusMessage}
         </div>
@@ -377,24 +393,23 @@ export default function TeamsPage() {
               <div className="flex items-center gap-2">
                 Jogadores
                 <ArrowUpDown
-                  className={`w-4 h-4 transition-transform ${
-                    sortByPlayers && sortDirection === "desc"
-                      ? "rotate-180"
-                      : "rotate-0"
-                  } ${sortByPlayers ? "opacity-100" : "opacity-30"}`}
+                  className={`w-4 h-4 transition-transform ${sortByPlayers && sortDirection === "desc"
+                    ? "rotate-180"
+                    : "rotate-0"
+                    } ${sortByPlayers ? "opacity-100" : "opacity-30"}`}
                 />
               </div>
             </th>
             <th className="px-6 py-3 text-left">Valor</th>
             <th className="px-6 py-3 text-left">Fundação</th>
+            <th className="px-6 py-3 text-left">Liga</th>
             <th className="px-6 py-3 text-right">Ações</th>
           </tr>
         </thead>
-
         <tbody className="bg-gray-950 divide-y divide-gray-800 text-gray-300">
           {filtered.length === 0 ? (
             <tr>
-              <td colSpan={6} className="text-center py-4 text-gray-400">
+              <td colSpan={7} className="text-center py-4 text-gray-400">
                 Nenhum time encontrado.
               </td>
             </tr>
@@ -415,8 +430,14 @@ export default function TeamsPage() {
                 <td className="px-6 py-3">
                   {formatBRL(playersValueMap[String(team.id)] || 0)}
                 </td>
-
                 <td className="px-6 py-3">{team.founded}</td>
+                <td className="px-6 py-3">
+                  {team.league_name ? (
+                    team.league_name
+                  ) : (
+                    <span className="italic text-gray-500">—</span>
+                  )}
+                </td>
                 <td className="px-6 py-3 text-right">
                   <button
                     onClick={(e) => {
@@ -436,15 +457,15 @@ export default function TeamsPage() {
         </tbody>
       </Table>
 
+
       {/* Paginação */}
       {totalPages > 1 && (
         <div className="flex justify-center items-center gap-2 mt-10 flex-wrap">
           <button
             onClick={() => goToPage(1)}
             disabled={currentPage === 1}
-            className={`w-8 h-8 flex items-center justify-center text-highlight-green hover:text-white hover:bg-highlight-green transition-colors ${
-              currentPage === 1 ? "text-gray-500 cursor-not-allowed" : ""
-            }`}
+            className={`w-8 h-8 flex items-center justify-center text-highlight-green hover:text-white hover:bg-highlight-green transition-colors ${currentPage === 1 ? "text-gray-500 cursor-not-allowed" : ""
+              }`}
             aria-label="Primeira página"
           >
             <ChevronsLeft size={18} />
@@ -452,9 +473,8 @@ export default function TeamsPage() {
           <button
             onClick={() => goToPage(currentPage - 1)}
             disabled={currentPage === 1}
-            className={`w-8 h-8 flex items-center justify-center text-highlight-green hover:text-black hover:bg-highlight-green transition-colors ${
-              currentPage === 1 ? "text-gray-500 cursor-not-allowed" : ""
-            }`}
+            className={`w-8 h-8 flex items-center justify-center text-highlight-green hover:text-black hover:bg-highlight-green transition-colors ${currentPage === 1 ? "text-gray-500 cursor-not-allowed" : ""
+              }`}
             aria-label="Página anterior"
           >
             <ChevronLeft size={18} />
@@ -465,11 +485,10 @@ export default function TeamsPage() {
           <button
             onClick={() => goToPage(currentPage + 1)}
             disabled={currentPage === totalPages}
-            className={`w-8 h-8 flex items-center justify-center text-highlight-green hover:text-white hover:bg-highlight-green transition-colors ${
-              currentPage === totalPages
-                ? "text-gray-500 cursor-not-allowed"
-                : ""
-            }`}
+            className={`w-8 h-8 flex items-center justify-center text-highlight-green hover:text-white hover:bg-highlight-green transition-colors ${currentPage === totalPages
+              ? "text-gray-500 cursor-not-allowed"
+              : ""
+              }`}
             aria-label="Próxima página"
           >
             <ChevronRight size={18} />
@@ -477,11 +496,10 @@ export default function TeamsPage() {
           <button
             onClick={() => goToPage(totalPages)}
             disabled={currentPage === totalPages}
-            className={`w-8 h-8 flex items-center justify-center text-highlight-green hover:text-white hover:bg-highlight-green transition-colors ${
-              currentPage === totalPages
-                ? "text-gray-500 cursor-not-allowed"
-                : ""
-            }`}
+            className={`w-8 h-8 flex items-center justify-center text-highlight-green hover:text-white hover:bg-highlight-green transition-colors ${currentPage === totalPages
+              ? "text-gray-500 cursor-not-allowed"
+              : ""
+              }`}
             aria-label="Última página"
           >
             <ChevronsRight size={18} />
@@ -550,12 +568,12 @@ export default function TeamsPage() {
                 drawerView === "add"
                   ? "translateX(0%)"
                   : drawerView === "list"
-                  ? "translateX(-20%)"
-                  : drawerView === "stats"
-                  ? "translateX(-40%)"
-                  : drawerView === "upsertStats"
-                  ? "translateX(-60%)"
-                  : "translateX(-80%)", // "edit"
+                    ? "translateX(-20%)"
+                    : drawerView === "stats"
+                      ? "translateX(-40%)"
+                      : drawerView === "upsertStats"
+                        ? "translateX(-60%)"
+                        : "translateX(-80%)", // "edit"
             }}
           >
             {/* ============================
@@ -662,8 +680,9 @@ export default function TeamsPage() {
                           </td>
 
                           <td className="px-6 py-3 text-right">
-                            R$ {p.value.toLocaleString("pt-BR")}
+                            R$ {(p.value != null ? Number(p.value) : 0).toLocaleString("pt-BR")}
                           </td>
+
 
                           <td className="px-6 py-3 flex gap-2 justify-center">
                             {/* EDITAR JOGADOR */}
@@ -724,7 +743,7 @@ export default function TeamsPage() {
                   stats={playerStats}
                   position={
                     selectedPlayer?.position &&
-                    positionProfiles[selectedPlayer.position]
+                      positionProfiles[selectedPlayer.position]
                       ? selectedPlayer.position
                       : "ATA"
                   }

@@ -1,156 +1,178 @@
+// src/app/leagues/components/upsert-leagues-form.tsx
 "use client";
 
-import React from "react";
-import { useFormik } from "formik";
+import { Formik, Form, Field, ErrorMessage, FormikHelpers } from "formik";
 import * as Yup from "yup";
+import { Save } from "lucide-react";
+import { supabase } from "@/app/lib/supabaseClient";
+
+export interface League {
+  id?: number;
+  name: string;
+  location: string;
+  created_at?: string;
+  ended_at?: string;
+}
 
 interface UpsertLeaguesFormProps {
-  onSubmitSuccess?: () => void;
-  existingLeague?: {
-    id?: string;
-    name?: string;
-    teamsCount?: number;
-    matches?: number;
-  };
+  existingLeague?: League | null;
+  onSubmitSuccess: () => void;
 }
 
 export default function UpsertLeaguesForm({
+  existingLeague = null,
   onSubmitSuccess,
-  existingLeague,
 }: UpsertLeaguesFormProps) {
-  const isEditMode = !!existingLeague?.id;
+  const initialValues = {
+    name: existingLeague?.name ?? "",
+    location: existingLeague?.location ?? "",
+    created_at: existingLeague?.created_at?.slice(0, 10) ?? "",
+    ended_at: existingLeague?.ended_at?.slice(0, 10) ?? "",
+  };
 
-  const formik = useFormik({
-    initialValues: {
-      name: existingLeague?.name || "",
-      teamsCount: existingLeague?.teamsCount || "",
-      matches: existingLeague?.matches || "",
-    },
-    validationSchema: Yup.object({
-      name: Yup.string().required("Preencha o campo"),
-      teamsCount: Yup.number()
-        .typeError("Informe um número")
-        .positive("Deve ser positivo")
-        .required("Preencha o campo"),
-      matches: Yup.number()
-        .typeError("Informe um número")
-        .positive("Deve ser positivo")
-        .required("Preencha o campo"),
-    }),
-    onSubmit: (values) => {
-      console.log(values);
-      onSubmitSuccess?.();
-    },
+  const validationSchema = Yup.object().shape({
+    name: Yup.string().required("O nome é obrigatório."),
+    location: Yup.string().required("A localização é obrigatória."),
+    created_at: Yup.string().required("Data de início obrigatória."),
+    ended_at: Yup.string()
+      .nullable()
+      .notRequired()
+      .test(
+        "valid-end",
+        "Data de término deve ser posterior à de início.",
+        function (value) {
+          if (!value || !this.parent.created_at) return true;
+          return value >= this.parent.created_at;
+        }
+      ),
   });
 
+  const handleSubmit = async (
+    values: typeof initialValues,
+    helpers: FormikHelpers<typeof initialValues>
+  ) => {
+    helpers.setSubmitting(true);
+    helpers.setStatus(null);
+
+    const payload = {
+      name: values.name,
+      location: values.location,
+      created_at: values.created_at,
+      ended_at: values.ended_at || null,
+    };
+
+    try {
+      if (existingLeague && existingLeague.id) {
+        const { error } = await supabase
+          .from("leagues")
+          .update(payload)
+          .eq("id", existingLeague.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from("leagues").insert(payload);
+        if (error) throw error;
+      }
+      onSubmitSuccess();
+    } catch (err: any) {
+      helpers.setStatus(err.message || "Ocorreu um erro inesperado.");
+    } finally {
+      helpers.setSubmitting(false);
+    }
+  };
+
+  const baseInputClass =
+    "w-full h-[48px] px-3 rounded-md bg-gray-800 border border-white/10 text-white placeholder-gray-400 focus:ring-2 focus:ring-highlight-green focus:outline-none transition-all duration-300";
+
   return (
-    <form onSubmit={formik.handleSubmit} className="space-y-6">
-      {/* Nome da Liga */}
-      <div className="relative">
-        <label className="block text-sm font-semibold text-gray-300 mb-2 uppercase tracking-wide">
-          Nome da Liga
-        </label>
-        <input
-          type="text"
-          name="name"
-          value={formik.values.name}
-          onChange={formik.handleChange}
-          onBlur={formik.handleBlur}
-          placeholder="Ex: Premier League"
-          className={`w-full p-3 rounded-md bg-gray-800 text-white border ${
-            formik.touched.name && formik.errors.name
-              ? "border-red-500"
-              : "border-white/10"
-          } placeholder-gray-500 transition-all duration-300`}
-          style={{
-            outline: "none",
-            boxShadow:
-              formik.touched.name && !formik.errors.name
-                ? "0 0 0 1px var(--highlight-green)"
-                : undefined,
-          }}
-        />
-        <div className="absolute left-0 mt-1 text-red-500 text-xs min-h-[1rem]">
-          {formik.touched.name && formik.errors.name}
-        </div>
-      </div>
+    <Formik
+      initialValues={initialValues}
+      validationSchema={validationSchema}
+      enableReinitialize={true}
+      onSubmit={handleSubmit}
+    >
+      {({ isSubmitting, status }) => (
+        <Form className="space-y-6 text-white">
+          {status && (
+            <div className="bg-red-600 text-white text-sm px-4 py-2 rounded-md">
+              {status}
+            </div>
+          )}
 
-      {/* Quantidade de Times */}
-      <div className="relative">
-        <label className="block text-sm font-semibold text-gray-300 mb-2 uppercase tracking-wide">
-          Quantidade de Times
-        </label>
-        <input
-          type="number"
-          name="teamsCount"
-          value={formik.values.teamsCount}
-          onChange={formik.handleChange}
-          onBlur={formik.handleBlur}
-          placeholder="Ex: 20"
-          className={`w-full p-3 rounded-md bg-gray-800 text-white border ${
-            formik.touched.teamsCount && formik.errors.teamsCount
-              ? "border-red-500"
-              : "border-white/10"
-          } placeholder-gray-500 transition-all duration-300`}
-          style={{
-            outline: "none",
-            boxShadow:
-              formik.touched.teamsCount && !formik.errors.teamsCount
-                ? "0 0 0 1px var(--highlight-green)"
-                : undefined,
-          }}
-        />
-        <div className="absolute left-0 mt-1 text-red-500 text-xs min-h-[1rem]">
-          {formik.touched.teamsCount && formik.errors.teamsCount}
-        </div>
-      </div>
+          {/* Nome da Liga */}
+          <div className="flex flex-col">
+            <label className="text-sm font-semibold text-gray-300 mb-1 uppercase tracking-wide">
+              Nome da Liga
+            </label>
+            <Field
+              type="text"
+              name="name"
+              placeholder="Ex: Campeonato Brasileiro"
+              className={baseInputClass}
+            />
+            <ErrorMessage
+              name="name"
+              component="div"
+              className="text-red-500 text-sm mt-1"
+            />
+          </div>
 
-      {/* Quantidade de Partidas */}
-      <div className="relative">
-        <label className="block text-sm font-semibold text-gray-300 mb-2 uppercase tracking-wide">
-          Quantidade de Partidas
-        </label>
-        <input
-          type="number"
-          name="matches"
-          value={formik.values.matches}
-          onChange={formik.handleChange}
-          onBlur={formik.handleBlur}
-          placeholder="Ex: 38"
-          className={`w-full p-3 rounded-md bg-gray-800 text-white border ${
-            formik.touched.matches && formik.errors.matches
-              ? "border-red-500"
-              : "border-white/10"
-          } placeholder-gray-500 transition-all duration-300`}
-          style={{
-            outline: "none",
-            boxShadow:
-              formik.touched.matches && !formik.errors.matches
-                ? "0 0 0 1px var(--highlight-green)"
-                : undefined,
-          }}
-        />
-        <div className="absolute left-0 mt-1 text-red-500 text-xs min-h-[1rem]">
-          {formik.touched.matches && formik.errors.matches}
-        </div>
-      </div>
+          {/* Localização */}
+          <div className="flex flex-col">
+            <label className="text-sm font-semibold text-gray-300 mb-1 uppercase tracking-wide">
+              Localização
+            </label>
+            <Field
+              type="text"
+              name="location"
+              placeholder="Ex: Brasil"
+              className={baseInputClass}
+            />
+            <ErrorMessage
+              name="location"
+              component="div"
+              className="text-red-500 text-sm mt-1"
+            />
+          </div>
 
-      {/* Botão */}
-      <button
-        type="submit"
-        className="
-          w-full py-3 
-          rounded-lg border-2 
-          font-semibold transition-all duration-300
-        "
-        style={{
-          borderColor: "var(--highlight-green)",
-          backgroundColor: "var(--highlight-green)",
-          color: "white",
-        }}
-      >
-        {isEditMode ? "Salvar Alterações" : "Cadastrar"}
-      </button>
-    </form>
+          {/* Datas */}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="flex flex-col">
+              <label className="text-sm font-semibold text-gray-300 mb-1 uppercase tracking-wide">
+                Início
+              </label>
+              <Field type="date" name="created_at" className={baseInputClass} />
+              <ErrorMessage
+                name="created_at"
+                component="div"
+                className="text-red-500 text-sm mt-1"
+              />
+            </div>
+            <div className="flex flex-col">
+              <label className="text-sm font-semibold text-gray-300 mb-1 uppercase tracking-wide">
+                Fim
+              </label>
+              <Field type="date" name="ended_at" className={baseInputClass} />
+              <ErrorMessage
+                name="ended_at"
+                component="div"
+                className="text-red-500 text-sm mt-1"
+              />
+            </div>
+          </div>
+
+          {/* Botão de Salvar */}
+          <div className="flex justify-end">
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="w-10 h-10 flex items-center justify-center rounded-full border-2 border-highlight-green text-highlight-green hover:bg-highlight-green hover:text-black transition-colors shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+              aria-label="Salvar"
+            >
+              <Save className="w-5 h-5" />
+            </button>
+          </div>
+        </Form>
+      )}
+    </Formik>
   );
 }

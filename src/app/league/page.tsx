@@ -1,34 +1,49 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { AiOutlinePlus, AiOutlineClose } from "react-icons/ai";
+import { FiEdit } from "react-icons/fi";
 import Table from "../components/table";
-import UpsertLeaguesForm from "./components/upsert-leagues-form";
+import { supabase } from "@/app/lib/supabaseClient";
+import UpsertLeaguesForm, { League } from "./components/upsert-leagues-form";
+import EditLeaguesForm from "./components/edit-leagues-form";
 
-const leagues = [
-  {
-    id: 1,
-    name: "Brasileirão Série A",
-    matches: 38,
-    teamsCount: 20,
-  },
-  {
-    id: 2,
-    name: "Premier League",
-    matches: 38,
-    teamsCount: 20,
-  },
-  {
-    id: 3,
-    name: "La Liga",
-    matches: 38,
-    teamsCount: 20,
-  },
-  // Mais ligas aqui...
-];
-
-const Leagues = () => {
+export default function LeaguesPage() {
+  const [leagues, setLeagues] = useState<League[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingLeague, setEditingLeague] = useState<League | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  // Buscar as ligas e os times separadamente (join manual)
+  const fetchLeagues = async () => {
+    setLoading(true);
+
+    const { data: leaguesData, error: leaguesError } = await supabase
+      .from("leagues")
+      .select("*");
+
+    const { data: teamsData, error: teamsError } = await supabase
+      .from("teams")
+      .select("id, leagues_id");
+
+    if (leaguesError || teamsError) {
+      setLeagues([]);
+      setLoading(false);
+      return;
+    }
+
+    setLeagues(
+      (leaguesData || []).map((l: any) => ({
+        ...l,
+        teamsCount: (teamsData || []).filter((t: any) => t.leagues_id === l.id).length,
+      }))
+    );
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    fetchLeagues();
+  }, []);
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-8">
@@ -66,40 +81,74 @@ const Leagues = () => {
 
       {/* Tabela */}
       <div className="mt-10">
-      <Table>
-  <>
-    <thead className="bg-gray-900 uppercase text-sm text-gray-400">
-      <tr>
-        <th className="px-6 py-3 text-left">Liga</th>
-        <th className="px-6 py-3 text-left">Times</th>
-        <th className="px-6 py-3 text-left">Partidas</th>
-      </tr>
-    </thead>
-    <tbody className="divide-y divide-gray-800 bg-gray-950">
-      {leagues.map((league) => (
-        <tr
-          key={league.id}
-          className="hover:bg-gray-900 transition duration-150 ease-in-out"
-        >
-          <td className="px-6 py-3 font-bold text-green-500">{league.name}</td>
-          <td className="px-6 py-3">{league.teamsCount}</td>
-          <td className="px-6 py-3">{league.matches}</td>
-        </tr>
-      ))}
-    </tbody>
-  </>
-</Table>
+        <Table>
+          <thead className="bg-gray-900 uppercase text-sm text-gray-400">
+            <tr>
+              <th className="px-6 py-3 text-left">Liga</th>
+              <th className="px-6 py-3 text-left">Times</th>
+              <th className="px-6 py-3 text-left">Localização</th>
+              <th className="px-6 py-3 text-left">Início</th>
+              <th className="px-6 py-3 text-left">Fim</th>
+              <th className="px-6 py-3 text-left">Ações</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-800 bg-gray-950">
+            {loading ? (
+              <tr>
+                <td colSpan={6} className="py-10 text-center text-gray-400">
+                  Carregando...
+                </td>
+              </tr>
+            ) : leagues.length === 0 ? (
+              <tr>
+                <td colSpan={6} className="py-10 text-center text-gray-400">
+                  Nenhuma liga encontrada.
+                </td>
+              </tr>
+            ) : (
+              leagues.map((league) => (
+                <tr
+                  key={league.id}
+                  className="hover:bg-gray-900 transition duration-150 ease-in-out"
+                >
+                  <td className="px-6 py-3 font-bold text-green-500">
+                    {league.name}
+                  </td>
+                  <td className="px-6 py-3">{(league as any).teamsCount}</td>
+                  <td className="px-6 py-3">{league.location || "-"}</td>
+                  <td className="px-6 py-3">
+                    {league.created_at
+                      ? new Date(league.created_at).toLocaleDateString("pt-BR")
+                      : "-"}
+                  </td>
+                  <td className="px-6 py-3">
+                    {league.ended_at
+                      ? new Date(league.ended_at).toLocaleDateString("pt-BR")
+                      : "-"}
+                  </td>
+                  <td className="px-6 py-3 flex gap-2">
+                    <button
+                      onClick={() => setEditingLeague(league)}
+                      className="p-2 rounded-md bg-highlight-green/20 text-highlight-green hover:bg-highlight-green hover:text-white transition"
+                      title="Editar Liga"
+                    >
+                      <FiEdit size={18} />
+                    </button>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </Table>
       </div>
 
-      {/* Modal */}
+      {/* Modal de criar liga */}
       {isModalOpen && (
         <div className="fixed inset-0 flex items-center justify-center z-50">
-          {/* Overlay */}
           <div
             className="absolute inset-0 bg-black/50 backdrop-blur-sm transition-opacity duration-300"
             onClick={() => setIsModalOpen(false)}
           />
-          {/* Conteúdo do Modal */}
           <div
             className="
               relative z-10 
@@ -134,12 +183,46 @@ const Leagues = () => {
                 <AiOutlineClose size={24} />
               </button>
             </div>
-            <UpsertLeaguesForm onSubmitSuccess={() => setIsModalOpen(false)} />
+            <UpsertLeaguesForm
+              onSubmitSuccess={() => {
+                setIsModalOpen(false);
+                fetchLeagues();
+              }}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Modal de editar liga */}
+      {editingLeague && (
+        <div className="fixed inset-0 flex items-center justify-center z-50">
+          <div
+            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+            onClick={() => setEditingLeague(null)}
+          />
+          <div className="relative z-10 bg-gradient-to-br from-gray-800/80 to-gray-900/80 p-10 rounded-3xl shadow-xl w-[90%] sm:w-[600px] border border-white/10 animate-slide-up">
+            <div className="relative mb-6">
+              <h3 className="text-3xl font-extrabold text-center text-highlight-green">
+                Editar Liga
+              </h3>
+              <button
+                onClick={() => setEditingLeague(null)}
+                className="absolute right-0 top-0 w-12 h-12 flex items-center justify-center rounded-full border-2 border-highlight-green text-highlight-green hover:bg-highlight-green hover:text-white transition"
+                aria-label="Fechar Modal"
+              >
+                <AiOutlineClose size={24} />
+              </button>
+            </div>
+            <EditLeaguesForm
+              existingLeague={editingLeague}
+              onSubmitSuccess={() => {
+                setEditingLeague(null);
+                fetchLeagues();
+              }}
+            />
           </div>
         </div>
       )}
     </div>
   );
-};
-
-export default Leagues;
+}
